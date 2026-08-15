@@ -65,7 +65,7 @@ def build_report(
         title=html.escape(title),
         style=_STYLE,
         script=_SCRIPT,
-        data=json.dumps(payload, ensure_ascii=False, default=str),
+        data=_safe_json(payload),
         header=_render_header(rows, samples, metrics),
         summary_table=_render_summary(summary, group_columns, metrics),
     )
@@ -234,6 +234,26 @@ def _render_summary(summary: Sequence[Mapping], group_columns: Sequence[str],
         '<div class="table-scroll"><table class="summary">'
         f"<thead><tr>{head}</tr></thead>"
         f"<tbody>{''.join(body_rows)}</tbody></table></div>"
+    )
+
+
+def _safe_json(payload: Any) -> str:
+    """JSON for embedding inside a <script> block.
+
+    Model output is untrusted text. A response containing the literal
+    ``</script>`` would otherwise close the block early, breaking the page and
+    letting the rest of the string be parsed as markup. Escaping `<`, `>` and
+    `&` as \\uXXXX makes that impossible; JSON.parse turns them back into the
+    original characters, so nothing is lost. U+2028/U+2029 are escaped too —
+    they are line terminators to a JavaScript parser.
+    """
+    text = json.dumps(payload, ensure_ascii=False, default=str)
+    return (
+        text.replace("<", "\\u003c")
+        .replace(">", "\\u003e")
+        .replace("&", "\\u0026")
+        .replace("\u2028", "\\u2028")
+        .replace("\u2029", "\\u2029")
     )
 
 
