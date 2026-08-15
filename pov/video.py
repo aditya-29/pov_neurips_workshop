@@ -103,6 +103,34 @@ class EncodeSettings:
         )
 
 
+#: ffmpeg encoder name → the codec name `ffprobe` reports for its output.
+#: The manifest's `codec` column is documented as what is really in the file
+#: (`h264`), and every path that probes a finished file reports that name. A
+#: freshly written clip must not disagree with the same clip after a resume.
+_STREAM_CODEC_NAMES = {
+    "libx264": "h264",
+    "h264_videotoolbox": "h264",
+    "libopenh264": "h264",
+    "libx265": "hevc",
+    "hevc_videotoolbox": "hevc",
+    "libvpx": "vp8",
+    "libvpx-vp9": "vp9",
+    "libaom-av1": "av1",
+    "libsvtav1": "av1",
+    "librav1e": "av1",
+    "mjpeg": "mjpeg",
+}
+
+
+def stream_codec_name(encoder: str) -> str:
+    """Name `ffprobe` will report for a stream written by `encoder`.
+
+    Falls back to the encoder name itself, which is already correct for
+    encoders named after their codec (e.g. ``mpeg4``, ``mjpeg``).
+    """
+    return _STREAM_CODEC_NAMES.get(encoder, encoder)
+
+
 # ──────────────────────────────────────────────────────────────────────────────
 # Frame normalisation
 # ──────────────────────────────────────────────────────────────────────────────
@@ -368,7 +396,7 @@ def write_timeline(
         fps=float(settings.fps),
         n_frames=total_output_frames,
         duration_sec=total_output_frames / float(settings.fps),
-        codec=settings.codec,
+        codec=stream_codec_name(settings.codec),
         piped_frames=writer.frames_written,
         file_size_bytes=Path(path).stat().st_size if Path(path).exists() else 0,
     )

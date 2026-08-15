@@ -18,6 +18,7 @@ from pov.video import (
     cut_clip,
     probe_video,
     reduce_holds,
+    stream_codec_name,
     write_timeline,
 )
 from tests.conftest import requires_ffmpeg
@@ -273,3 +274,41 @@ class TestEncoding:
         stats = probe_video(path)
         assert stats.codec == "h264"
         assert stats.fps == pytest.approx(30.0, abs=0.5)
+
+    def test_written_codec_matches_the_probed_codec(self, tmp_path):
+        """A resumed row probes the file; a fresh row does not. They must agree.
+
+        `write_timeline` used to report the *encoder* (`libx264`) while
+        `probe_video` and `cut_clip` report the *stream* codec (`h264`), so the
+        same clip changed its manifest `codec` depending on whether the run had
+        been resumed.
+        """
+        path = tmp_path / "codec.mp4"
+        written = write_timeline(
+            path, [(frame(), 10)], EncodeSettings(fps=30, preset="ultrafast")
+        )
+        assert written.codec == probe_video(path).codec == "h264"
+
+    def test_cut_clip_and_write_timeline_agree_on_codec(self, tmp_path):
+        settings = EncodeSettings(fps=30, preset="ultrafast")
+        source = tmp_path / "src.mp4"
+        written = write_timeline(source, [(frame(), 30)], settings)
+        cut = cut_clip(source, tmp_path / "cut.mp4", settings, duration=0.5)
+        assert written.codec == cut.codec
+
+
+class TestStreamCodecName:
+    """The encoder → probed-codec mapping behind the manifest's `codec` column."""
+
+    def test_maps_known_encoders(self):
+        assert stream_codec_name("libx264") == "h264"
+        assert stream_codec_name("libx265") == "hevc"
+        assert stream_codec_name("libvpx-vp9") == "vp9"
+
+    def test_passes_through_unknown_and_self_named_encoders(self):
+        assert stream_codec_name("mpeg4") == "mpeg4"
+        assert stream_codec_name("some_future_encoder") == "some_future_encoder"
+
+    def test_default_encoder_is_mapped(self):
+        """The default must be mapped, or every default run mislabels its rows."""
+        assert stream_codec_name(EncodeSettings().codec) == "h264"
