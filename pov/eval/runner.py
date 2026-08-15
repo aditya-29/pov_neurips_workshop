@@ -76,7 +76,8 @@ class EvalReport:
         ]
         if self.n_missing_output:
             lines.append(
-                f"  {self.n_missing_output} row(s) had an empty model_output (scored 0)"
+                f"  {self.n_missing_output} row(s) had an empty model_output "
+                "(scored as a wrong answer, not skipped)"
             )
         overall = self.overall()
         if overall:
