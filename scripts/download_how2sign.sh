@@ -104,7 +104,9 @@ else
     # The link may serve the raw CSV or a zip containing it.
     if unzip -tq "$tmp/download" >/dev/null 2>&1; then
         unzip -joq "$tmp/download" -d "$tmp/extracted"
-        found="$(find "$tmp/extracted" -name '*.csv' | head -1)"
+        # -print -quit rather than `| head -1`: under `set -o pipefail` the
+        # closed pipe kills find with SIGPIPE and aborts the whole script.
+        found="$(find "$tmp/extracted" -name '*.csv' -print -quit)"
         [[ -n "$found" ]] || { echo "error: no CSV inside the archive" >&2; exit 1; }
         mv "$found" "$CSV_PATH"
     else
@@ -145,7 +147,10 @@ else
 
     # The archive's internal layout has changed across releases, so locate the
     # directory that actually holds the mp4s instead of assuming a path.
-    sample="$(find "$staging" -name '*.mp4' | head -1)"
+    # `find … | head -1` would abort here: head closes the pipe after the first
+    # of ~1,700 paths, find dies with SIGPIPE, and `set -o pipefail` propagates
+    # exit 141 — the whole download silently fails right after extracting.
+    sample="$(find "$staging" -name '*.mp4' -print -quit)"
     if [[ -z "$sample" ]]; then
         echo "error: no .mp4 files found inside $zip_path" >&2
         exit 1
