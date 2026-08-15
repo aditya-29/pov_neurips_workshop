@@ -119,6 +119,9 @@ for i, row in df.iterrows():
 df.to_csv(f"{run_dir}/preds.csv", index=False)
 ```
 
+`pov` itself uses only the stdlib `csv` module, so pandas is **not** installed
+with it — `pip install pandas` first, or read and write the CSV with `csv`.
+
 Comparing several models? Add a `model` column and stack the rows — `pov eval`
 groups by it automatically.
 
@@ -168,7 +171,7 @@ pov/
   report/         single-file HTML
 configs/          one example config per experiment
 docs/manifest.md  every manifest column
-tests/            577 tests
+tests/            591 tests
 ```
 
 ## Speed
@@ -195,9 +198,9 @@ Measured: a 3-game × 3-duration chess run renders 63 frames to encode 3,861
 ## Tests
 
 ```bash
-pytest                  # 577 tests, ~6s
+pytest                  # 591 tests, ~9s
 pytest -m integration   # only the ones that write real media
-pytest -m "not slow"    # skip perft(4)
+pytest -m "not slow"    # skip perft(4) and the download-script tests
 ```
 
 The pure-python core (chess rules, config validation, manifest, bucketing, all
