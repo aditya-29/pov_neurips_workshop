@@ -93,6 +93,22 @@ class Reader:
             raise ConfigError(f"{self._where(key)}: required key is missing")
         return default
 
+    # -- introspection -----------------------------------------------------
+
+    def keys(self) -> list[str]:
+        """Keys present in the mapping.
+
+        For sections whose keys are user-chosen (e.g. speed names), where the
+        schema cannot enumerate them ahead of time.
+        """
+        return list(self._data)
+
+    def __contains__(self, key: str) -> bool:
+        return key in self._data
+
+    def __len__(self) -> int:
+        return len(self._data)
+
     # -- typed accessors ---------------------------------------------------
 
     def raw(self, key: str, default: Any = _MISSING) -> Any:
