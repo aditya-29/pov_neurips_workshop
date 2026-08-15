@@ -45,9 +45,19 @@ class TestRunLayout:
         assert layout.run_dir.name == "run1"
         assert layout.run_dir.parent.name == "chess"
         assert layout.media_dir.is_dir()
-        assert layout.ground_truth_dir.is_dir()
         assert layout.manifest_path.name == "manifest.csv"
         assert layout.config_path.name == "config.resolved.yaml"
+
+    def test_ground_truth_dir_is_not_created_up_front(self, layout):
+        # Experiments whose ground truth fits in a CSV cell (an MCQ answer
+        # letter, an ASL sentence) must not grow an empty directory.
+        assert not layout.ground_truth_dir.exists()
+
+    def test_ground_truth_dir_appears_when_first_used(self, layout):
+        path = layout.ground_truth_file("game0000.txt")
+        assert layout.ground_truth_dir.is_dir()
+        path.write_text("transcript", encoding="utf-8")
+        assert path.read_text() == "transcript"
 
     def test_create_is_idempotent(self, layout):
         marker = layout.media_dir / "keep.txt"

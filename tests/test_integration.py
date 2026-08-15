@@ -81,6 +81,14 @@ class TestChessGeneration:
         assert row["seed"] and row["run_id"] == "test"
         assert row[MODEL_OUTPUT_COLUMN] == ""
 
+    def test_ground_truth_directory_is_created_for_transcripts(self, chess_config):
+        # Chess transcripts are too long to inline, so here the directory must
+        # exist and hold one file per clip.
+        result = run(chess_config)
+        gt_dir = result.run_dir / "ground_truth"
+        assert gt_dir.is_dir()
+        assert len(list(gt_dir.glob("*.txt"))) == result.n_rows
+
     def test_ground_truth_matches_the_clip_length(self, chess_config):
         result = run(chess_config)
         for row in read_manifest(result.manifest_path):
@@ -299,6 +307,12 @@ class TestWbwGeneration:
         for row in read_manifest(run(wbw_config).manifest_path):
             assert row["ground_truth"] in ("A", "B", "C", "D")
 
+    def test_no_empty_ground_truth_directory(self, wbw_config):
+        # An answer letter is inlined in the manifest, so no file is needed and
+        # no directory should be left sitting empty.
+        result = run(wbw_config)
+        assert not (result.run_dir / "ground_truth").exists()
+
     def test_question_metadata_is_recorded(self, wbw_config):
         row = read_manifest(run(wbw_config).manifest_path)[0]
         assert row["stem"] and row["option_a"] and row["question_id"]
@@ -401,6 +415,10 @@ class TestAslGeneration:
     def test_ground_truth_is_the_sentence(self, asl_corpus):
         for row in read_manifest(run(asl_corpus).manifest_path):
             assert row["ground_truth"].startswith("This is sentence")
+
+    def test_no_empty_ground_truth_directory(self, asl_corpus):
+        result = run(asl_corpus)
+        assert not (result.run_dir / "ground_truth").exists()
 
     def test_bucket_and_source_recorded(self, asl_corpus):
         for row in read_manifest(run(asl_corpus).manifest_path):

@@ -92,8 +92,12 @@ class RunLayout:
         if self.run_dir.exists() and not self.run_dir.is_dir():
             raise LayoutError(f"{self.run_dir} exists but is not a directory")
 
+        # ground_truth/ is deliberately NOT created here. Only ground truth too
+        # long for a CSV cell is written to a file — chess transcripts. An MCQ
+        # answer ("B") or an ASL sentence lives in the manifest's ground_truth
+        # column, so creating the directory up front would leave an empty one
+        # sitting in every run of those experiments forever.
         self.media_dir.mkdir(parents=True, exist_ok=True)
-        self.ground_truth_dir.mkdir(parents=True, exist_ok=True)
         return self
 
     def exists(self) -> bool:
@@ -106,7 +110,13 @@ class RunLayout:
         return self.media_dir / filename
 
     def ground_truth_file(self, filename: str) -> Path:
+        """Path for a ground-truth file, creating the directory on demand.
+
+        Created here rather than in :meth:`create` so experiments whose ground
+        truth is short enough to inline never grow an empty directory.
+        """
         _check_filename(filename)
+        self.ground_truth_dir.mkdir(parents=True, exist_ok=True)
         return self.ground_truth_dir / filename
 
     def relpath(self, path: str | Path) -> str:

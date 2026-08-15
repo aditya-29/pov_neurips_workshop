@@ -189,10 +189,12 @@ class Generator(ABC):
         if pre_existing:
             return
         try:
-            if any(layout.media_dir.iterdir()):
-                return
-            if any(layout.ground_truth_dir.iterdir()):
-                return
+            # ground_truth/ is created on demand, so it may legitimately be
+            # absent. Guard both, or the FileNotFoundError would be swallowed
+            # below and the empty run directory would survive after all.
+            for directory in (layout.media_dir, layout.ground_truth_dir):
+                if directory.is_dir() and any(directory.iterdir()):
+                    return
             shutil.rmtree(layout.run_dir, ignore_errors=True)
             # Drop the experiment directory too if this was its only run.
             parent = layout.experiment_dir
