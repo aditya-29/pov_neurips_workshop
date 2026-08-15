@@ -327,8 +327,13 @@ class TestChessScorer:
         scores = ChessScorer().score({"model_output": ""}, TRANSCRIPT)
         assert scores["moves_expected"] == 4
 
-    def test_empty_scores(self):
-        assert ChessScorer().empty_scores()["strict"] == 0.0
+    def test_empty_prediction_keeps_ground_truth_counts(self):
+        # moves_expected describes the transcript, not the prediction, so an
+        # empty model_output must not flatten it to 0.
+        scores = ChessScorer().score({"model_output": "", "n_half_moves": 4}, TRANSCRIPT)
+        assert scores["moves_expected"] == 4
+        assert scores["moves_predicted"] == 0
+        assert scores["strict"] == 0.0
 
 
 # ── MCQ scoring ───────────────────────────────────────────────────────────────
@@ -436,6 +441,11 @@ class TestAslScorer:
     def test_empty_output(self):
         scores = AslScorer().score({"model_output": ""}, "Open your eyes")
         assert scores["token_f1"] == 0.0 and scores["bleu"] == 0.0
+
+    def test_empty_output_is_maximum_word_error_not_zero(self):
+        # wer is an error rate: 0.0 would mean a flawless transcription, which
+        # is the opposite of what an empty prediction earns.
+        assert AslScorer().score({"model_output": ""}, "Open your eyes")["wer"] == 1.0
 
     def test_judge_columns_are_passed_through(self):
         scores = AslScorer().score(

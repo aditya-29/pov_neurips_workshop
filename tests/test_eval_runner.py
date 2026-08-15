@@ -106,6 +106,33 @@ class TestEvaluate:
         assert report.n_missing_output == 1
         assert report.rows[0][f"{SCORE_PREFIX}correct"] == 0.0
 
+    def test_empty_output_does_not_score_as_a_perfect_transcription(self, tmp_path):
+        # Regression: empty predictions were zeroed across the board, so `wer`
+        # (an error rate) read 0.0 — flattering a model that answered nothing
+        # and dragging the reported mean down.
+        rows = [
+            {"sample_id": "a1", "experiment": "asl", "condition": "video_<3s",
+             "ground_truth": "hello there friend", "ground_truth_path": "",
+             "model_output": ""},
+        ]
+        report = evaluate(write_csv(tmp_path / "p.csv", rows), write=False)
+        assert report.rows[0][f"{SCORE_PREFIX}wer"] == 1.0
+        assert report.rows[0][f"{SCORE_PREFIX}token_f1"] == 0.0
+        assert report.n_missing_output == 1
+
+    def test_empty_output_keeps_ground_truth_counts(self, tmp_path):
+        # Regression: moves_expected is a property of the transcript; zeroing it
+        # corrupted the mean printed in summary.csv.
+        rows = [
+            {"sample_id": "g1", "experiment": "chess", "condition": "video_5s",
+             "ground_truth": "1 White b2 b3; 1 Black c7 c5", "ground_truth_path": "",
+             "n_half_moves": "2", "model_output": ""},
+        ]
+        report = evaluate(write_csv(tmp_path / "p.csv", rows), write=False)
+        assert report.rows[0][f"{SCORE_PREFIX}moves_expected"] == 2
+        assert report.rows[0][f"{SCORE_PREFIX}moves_predicted"] == 0
+        assert report.rows[0][f"{SCORE_PREFIX}loose"] == 0.0
+
     def test_missing_experiment_value(self, tmp_path):
         rows = mcq_rows()
         rows[1]["experiment"] = ""

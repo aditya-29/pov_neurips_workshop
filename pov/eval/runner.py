@@ -128,13 +128,14 @@ def evaluate(
         except ManifestError as exc:
             raise EvalError(str(exc)) from exc
 
-        output = (row.get(MODEL_OUTPUT_COLUMN) or "").strip()
-        if not output:
+        # An empty prediction is still scored by the real scorer rather than
+        # being zeroed. Zeroing every metric is wrong twice over: it reports
+        # `wer: 0.0` — a *perfect* transcription — for a model that produced
+        # nothing, and it flattens ground-truth counts like `moves_expected`
+        # to 0. The scorers already handle empty input correctly.
+        if not (row.get(MODEL_OUTPUT_COLUMN) or "").strip():
             missing_output += 1
-            scores = scorer.empty_scores()
-            scores.update({name: "" for name in scorer.details})
-        else:
-            scores = scorer.score(row, ground_truth)
+        scores = scorer.score(row, ground_truth)
 
         scored = dict(row)
         for name, value in scores.items():

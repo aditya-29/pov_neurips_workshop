@@ -31,8 +31,10 @@ class Scorer(ABC):
 
         `ground_truth` is already resolved — inline for short values, read from
         `ground_truth_path` for long ones.
-        """
 
-    def empty_scores(self) -> dict:
-        """All-zero scores, used when a row has no model output."""
-        return {metric: 0.0 for metric in self.metrics}
+        This must handle an empty or missing `model_output` sensibly: the
+        evaluator does **not** special-case it. Zeroing every metric would be
+        wrong for error-style metrics (`wer: 0.0` means a perfect transcription)
+        and for ground-truth counts (`moves_expected`), so each scorer reports
+        what an empty prediction really earns.
+        """
