@@ -68,6 +68,37 @@ class TestGenerateDryRun:
               "--set", "run.run_id=custom"])
         assert "custom" in capsys.readouterr().out
 
+    def test_dry_run_fails_when_source_data_is_missing(self, tmp_path, capsys):
+        # A dry run that reports a valid plan for a command which cannot
+        # possibly execute is worse than useless.
+        config = {
+            "experiment": "wbw_mcq",
+            "run": {"output_root": str(tmp_path / "out")},
+            "params": {"questions_path": str(tmp_path / "absent.jsonl")},
+        }
+        path = write_yaml(tmp_path / "c.yaml", config)
+        assert main(["generate", "-c", str(path), "--dry-run"]) == 2
+        captured = capsys.readouterr()
+        assert "source data is NOT ready" in captured.err
+        assert "fetch_mmlu.py" in captured.err
+        assert "config is valid, source data is present" not in captured.out
+
+    def test_dry_run_passes_when_source_data_is_present(self, tmp_path, questions_file, capsys):
+        config = {
+            "experiment": "wbw_mcq",
+            "run": {"output_root": str(tmp_path / "out")},
+            "params": {"questions_path": str(questions_file)},
+        }
+        path = write_yaml(tmp_path / "c.yaml", config)
+        assert main(["generate", "-c", str(path), "--dry-run"]) == 0
+        out = capsys.readouterr().out
+        assert "questions  : 2" in out
+        assert "source data is present" in out
+
+    def test_dry_run_needs_no_source_data_for_chess(self, tmp_path, chess_config):
+        path = write_yaml(tmp_path / "c.yaml", chess_config)
+        assert main(["generate", "-c", str(path), "--dry-run"]) == 0
+
 
 class TestEvalCommand:
     def preds(self, tmp_path: Path) -> Path:
@@ -109,8 +140,28 @@ class TestEvalCommand:
         assert html_path.exists()
 
     def test_missing_input(self, tmp_path, capsys):
-        assert main(["eval", "-i", str(tmp_path / "nope.csv")]) == 1
-        assert "not found" in capsys.readouterr().err.lower()
+        # A missing input file is bad input, not a pov bug: exit 2, and the
+        # message must not leak the exception class name.
+        assert main(["eval", "-i", str(tmp_path / "nope.csv")]) == 2
+        err = capsys.readouterr().err
+        assert "not found" in err.lower()
+        assert "ManifestError" not in err
+        assert "internal error" not in err
+
+    def test_unreadable_questions_reports_cleanly(self, tmp_path, capsys):
+        # QuestionError used to surface as a raw class name via the catch-all.
+        bad = tmp_path / "q.jsonl"
+        bad.write_text("not json\n")
+        config = {
+            "experiment": "wbw_mcq",
+            "run": {"output_root": str(tmp_path / "out")},
+            "params": {"questions_path": str(bad)},
+        }
+        path = write_yaml(tmp_path / "c.yaml", config)
+        assert main(["generate", "-c", str(path)]) == 2
+        err = capsys.readouterr().err
+        assert "QuestionError" not in err
+        assert err.startswith("error:")
 
 
 class TestReportCommand:

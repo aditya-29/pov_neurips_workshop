@@ -15,6 +15,7 @@ from pathlib import Path
 
 from pov import __version__
 from pov.config import Config, ConfigError, deep_merge, parse_override
+from pov.errors import PovError
 from pov.registry import EXPERIMENTS, UnknownExperiment, build_generator
 
 
@@ -125,7 +126,19 @@ def _cmd_generate(args: argparse.Namespace) -> int:
         print(f"config hash: {generator.config_hash}")
         print(f"encoder    : {config.video.codec} crf={config.video.crf} "
               f"preset={config.video.preset} fps={config.video.fps}")
-        print("config is valid; no media written (--dry-run)")
+
+        problems = generator.check_inputs()
+        if problems:
+            # Flush first: without it the stderr block jumps ahead of the
+            # buffered plan above and the output reads out of order.
+            sys.stdout.flush()
+            print("\nsource data is NOT ready — this run would fail:", file=sys.stderr)
+            for problem in problems:
+                print(f"  - {problem}", file=sys.stderr)
+            return 2
+
+        print("config is valid, source data is present; "
+              "no media written (--dry-run)")
         return 0
 
     result = generator.run()
@@ -209,6 +222,12 @@ def main(argv: list[str] | None = None) -> int:
     except (ConfigError, UnknownExperiment) as exc:
         print(f"config error: {exc}", file=sys.stderr)
         return 2
+    except PovError as exc:
+        # Every deliberate pov error: a problem with the user's input or data.
+        # Printed as a plain message — the exception class name is an internal
+        # detail and only confuses the reader.
+        print(f"error: {exc}", file=sys.stderr)
+        return 2
     except FileNotFoundError as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 2
@@ -216,7 +235,10 @@ def main(argv: list[str] | None = None) -> int:
         print("interrupted", file=sys.stderr)
         return 130
     except Exception as exc:
-        print(f"{type(exc).__name__}: {exc}", file=sys.stderr)
+        # Not a PovError, so this is a bug in pov rather than bad input. Name
+        # the type, and say so, so it gets reported instead of puzzled over.
+        print(f"internal error: {type(exc).__name__}: {exc}", file=sys.stderr)
+        print("This is a bug in pov, not a problem with your input.", file=sys.stderr)
         return 1
 
 

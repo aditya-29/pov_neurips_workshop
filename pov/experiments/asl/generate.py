@@ -151,6 +151,28 @@ class AslGenerator(Generator):
         except SamplingError as exc:
             raise ConfigError(f"params.buckets: {exc}") from exc
 
+    # -- preflight ---------------------------------------------------------
+
+    def check_inputs(self) -> list[str]:
+        params = self.params
+        problems: list[str] = []
+        hint = "(run: ./scripts/download_how2sign.sh)"
+
+        if not params.metadata_csv.exists():
+            problems.append(f"metadata_csv not found: {params.metadata_csv}  {hint}")
+        if not params.video_dir.is_dir():
+            problems.append(f"video_dir not found: {params.video_dir}  {hint}")
+        else:
+            n_videos = sum(1 for _ in params.video_dir.glob(f"*{params.video_extension}"))
+            if n_videos == 0:
+                problems.append(
+                    f"video_dir contains no {params.video_extension} files: "
+                    f"{params.video_dir}  {hint}"
+                )
+            elif not problems:
+                print(f"source     : {n_videos} clips in {params.video_dir}")
+        return problems
+
     # -- generation --------------------------------------------------------
 
     def generate(self, layout: RunLayout, manifest: ManifestWriter) -> dict:

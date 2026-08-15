@@ -89,6 +89,16 @@ class Generator(ABC):
     def generate(self, layout: RunLayout, manifest: ManifestWriter) -> dict:
         """Produce media and add manifest rows. Returns a stats dict."""
 
+    def check_inputs(self) -> list[str]:
+        """Problems that would stop this run, as human-readable strings.
+
+        Used by ``--dry-run``: a plan that cannot execute is not a plan, so the
+        dry run reports missing source data instead of printing a confident
+        summary for a command that fails a second later. Experiments with no
+        external inputs (chess) inherit the empty default.
+        """
+        return []
+
     # -- orchestration -----------------------------------------------------
 
     def build_layout(self) -> RunLayout:

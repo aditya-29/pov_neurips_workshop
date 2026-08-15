@@ -9,6 +9,8 @@ from __future__ import annotations
 import importlib
 from typing import Any
 
+from pov.errors import PovError
+
 #: experiment name → "module:ClassName"
 EXPERIMENTS: dict[str, str] = {
     "chess": "pov.experiments.chess.generate:ChessGenerator",
@@ -17,7 +19,7 @@ EXPERIMENTS: dict[str, str] = {
 }
 
 
-class UnknownExperiment(KeyError):
+class UnknownExperiment(PovError, KeyError):
     """Raised when a config names an experiment that does not exist."""
 
     def __init__(self, name: str):

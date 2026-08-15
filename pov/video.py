@@ -33,8 +33,10 @@ from typing import Any, Iterable, Sequence
 
 import numpy as np
 
+from pov.errors import PovError
 
-class VideoError(RuntimeError):
+
+class VideoError(PovError, RuntimeError):
     """Raised when ffmpeg/ffprobe is missing or fails."""
 
 

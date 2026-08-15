@@ -11,8 +11,10 @@ import random
 from dataclasses import dataclass
 from typing import Any, Iterable, Sequence
 
+from pov.errors import PovError
 
-class SamplingError(ValueError):
+
+class SamplingError(PovError, ValueError):
     """Raised for malformed bucket definitions."""
 
 

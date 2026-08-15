@@ -18,10 +18,12 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Iterable, Mapping, Sequence
 
+from pov.errors import PovError
+
 LETTERS = ("A", "B", "C", "D")
 
 
-class QuestionError(ValueError):
+class QuestionError(PovError, ValueError):
     """Raised for malformed question records."""
 
 

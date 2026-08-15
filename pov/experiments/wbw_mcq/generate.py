@@ -144,6 +144,24 @@ class WbwMcqGenerator(Generator):
         except ValueError as exc:
             raise ConfigError(f"params.canvas: {exc}") from exc
 
+    # -- preflight ---------------------------------------------------------
+
+    def check_inputs(self) -> list[str]:
+        path = self.params.questions_path
+        if not path.exists():
+            return [
+                f"questions file not found: {path}  "
+                "(run: python scripts/fetch_mmlu.py --limit 200)"
+            ]
+        try:
+            count = len(load_questions(path, self.params.questions_format))
+        except Exception as exc:
+            return [f"questions file is unreadable: {path} — {exc}"]
+        if self.params.limit:
+            count = min(count, self.params.limit)
+        print(f"questions  : {count} from {path}")
+        return []
+
     # -- generation --------------------------------------------------------
 
     def generate(self, layout: RunLayout, manifest: ManifestWriter) -> dict:

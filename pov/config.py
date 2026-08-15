@@ -35,13 +35,15 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Iterable, Mapping, Sequence
 
+from pov.errors import PovError
+
 try:
     import yaml
 except ImportError as exc:  # pragma: no cover - dependency is declared
     raise ImportError("pov requires PyYAML: pip install pyyaml") from exc
 
 
-class ConfigError(ValueError):
+class ConfigError(PovError, ValueError):
     """Raised for any malformed, missing, or unknown configuration value."""
 
 

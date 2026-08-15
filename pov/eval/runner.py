@@ -23,6 +23,8 @@ from pov.eval.chess import ChessScorer
 from pov.eval.mcq import McqScorer
 from pov.manifest import MODEL_OUTPUT_COLUMN, ManifestError, load_ground_truth, read_manifest
 
+from pov.errors import PovError
+
 #: experiment name → scorer
 SCORERS: dict[str, type[Scorer]] = {
     ChessScorer.experiment: ChessScorer,
@@ -34,7 +36,7 @@ SCORERS: dict[str, type[Scorer]] = {
 _OPTIONAL_GROUPS = ("model", "run_id")
 
 
-class EvalError(ValueError):
+class EvalError(PovError, ValueError):
     """Raised for unusable evaluation input."""
 
 

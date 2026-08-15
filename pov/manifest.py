@@ -21,6 +21,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Iterable, Mapping, Sequence
 
+from pov.errors import PovError
+
 # Ground truth longer than this is written to ground_truth/ and referenced by
 # path instead of being inlined; the CSV cell keeps a truncated preview.
 MAX_INLINE_GROUND_TRUTH = 2000
@@ -54,7 +56,7 @@ CORE_FIELDS: tuple[str, ...] = (
 _MEDIA_TYPES = ("video", "image")
 
 
-class ManifestError(ValueError):
+class ManifestError(PovError, ValueError):
     """Raised for malformed manifest rows or files."""
 
 

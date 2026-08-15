@@ -18,13 +18,15 @@ import shutil
 from dataclasses import dataclass
 from pathlib import Path
 
+from pov.errors import PovError
+
 MEDIA_DIRNAME = "media"
 GROUND_TRUTH_DIRNAME = "ground_truth"
 MANIFEST_FILENAME = "manifest.csv"
 CONFIG_FILENAME = "config.resolved.yaml"
 
 
-class LayoutError(RuntimeError):
+class LayoutError(PovError, RuntimeError):
     """Raised when a run directory is in an unusable state."""
 
 
