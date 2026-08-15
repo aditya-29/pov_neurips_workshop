@@ -20,6 +20,7 @@ from pov.config import Config, Reader
 from pov.errors import PovError
 from pov.layout import RunLayout
 from pov.manifest import ManifestRow, ManifestWriter, store_ground_truth
+from pov.progress import Progress
 from pov.video import EncodeSettings
 
 
@@ -86,6 +87,22 @@ class Generator(ABC):
         self.encode = EncodeSettings.from_config(config.video)
         self.params = self.parse_params(Reader(config.params, path="params"))
         self._generated_at = _dt.datetime.now().isoformat(timespec="seconds")
+        #: Set False by `--quiet` to suppress the progress bar.
+        self.show_progress = True
+
+    def progress(self, total: int | None, unit: str = "file") -> Progress:
+        """A progress bar for this run.
+
+        `--quiet` forces it off; otherwise `disable=None` lets Progress decide
+        from the stream. Passing False here would *override* that detection and
+        render a live bar into captured or redirected output.
+        """
+        return Progress(
+            total=total,
+            desc=self.name,
+            unit=unit,
+            disable=True if not self.show_progress else None,
+        )
 
     # -- subclass hooks ----------------------------------------------------
 

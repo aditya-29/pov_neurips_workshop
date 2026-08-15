@@ -38,7 +38,12 @@ def build_parser() -> argparse.ArgumentParser:
     )
     generate.add_argument(
         "--dry-run", action="store_true",
-        help="validate the config and print the resolved plan without writing media",
+        help="validate the config and source data, and print the resolved plan, "
+             "without writing media",
+    )
+    generate.add_argument(
+        "--quiet", "-q", action="store_true",
+        help="suppress the progress bar",
     )
     generate.set_defaults(func=_cmd_generate)
 
@@ -116,6 +121,7 @@ def _load_config(args: argparse.Namespace) -> Config:
 def _cmd_generate(args: argparse.Namespace) -> int:
     config = _load_config(args)
     generator = build_generator(config)
+    generator.show_progress = not getattr(args, "quiet", False)
 
     if args.dry_run:
         layout = generator.build_layout()

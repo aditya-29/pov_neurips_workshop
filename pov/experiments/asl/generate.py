@@ -217,20 +217,22 @@ class AslGenerator(Generator):
         skipped = 0
 
         workers = min(self.config.run.workers, max(1, len(sampled)))
-        with ThreadPoolExecutor(max_workers=workers) as pool:
-            futures = {
-                pool.submit(self._process_clip, record, layout): record
-                for record in sampled
-            }
-            for future in as_completed(futures):
-                record = futures[future]
-                try:
-                    row, was_skipped = future.result()
-                except Exception as exc:
-                    errors.append((record["_sample_id"], f"{type(exc).__name__}: {exc}"))
-                    continue
-                rows.append(row)
-                skipped += int(was_skipped)
+        with self.progress(len(sampled), unit="clip") as bar:
+            with ThreadPoolExecutor(max_workers=workers) as pool:
+                futures = {
+                    pool.submit(self._process_clip, record, layout): record
+                    for record in sampled
+                }
+                for future in as_completed(futures):
+                    record = futures[future]
+                    bar.update()
+                    try:
+                        row, was_skipped = future.result()
+                    except Exception as exc:
+                        errors.append((record["_sample_id"], f"{type(exc).__name__}: {exc}"))
+                        continue
+                    rows.append(row)
+                    skipped += int(was_skipped)
 
         for row in sorted(rows, key=lambda r: r.sample_id):
             manifest.add(row)
@@ -319,17 +321,22 @@ class AslGenerator(Generator):
                 pending.append(record)
 
         if pending:
-            with ThreadPoolExecutor(max_workers=params.probe_workers) as pool:
-                futures = {
-                    pool.submit(_probe_duration, record["_path"]): record
-                    for record in pending
-                }
-                for future in as_completed(futures):
-                    record = futures[future]
-                    duration = future.result()
-                    record["_duration"] = duration
-                    if duration is not None:
-                        cache.put(record["_path"], duration)
+            # Measuring thousands of videos is the slow half of an uncached ASL
+            # run, so it gets its own bar rather than looking like a hang.
+            with self.progress(len(pending), unit="probe") as bar:
+                bar.set_description(f"{self.name}: measuring durations")
+                with ThreadPoolExecutor(max_workers=params.probe_workers) as pool:
+                    futures = {
+                        pool.submit(_probe_duration, record["_path"]): record
+                        for record in pending
+                    }
+                    for future in as_completed(futures):
+                        record = futures[future]
+                        duration = future.result()
+                        record["_duration"] = duration
+                        if duration is not None:
+                            cache.put(record["_path"], duration)
+                        bar.update()
             cache.save()
 
         return len(pending)

@@ -188,24 +188,29 @@ class WbwMcqGenerator(Generator):
         output_frames = 0
         piped_frames = 0
 
+        # One unit per file written, so the bar tracks what lands on disk.
+        per_question = int(params.static_image) + len(params.modes) * len(params.speeds)
         workers = min(self.config.run.workers, max(1, len(questions)))
-        with ThreadPoolExecutor(max_workers=workers) as pool:
-            futures = {
-                pool.submit(self._process_question, question, renderer, layout): question
-                for question in questions
-            }
-            for future in as_completed(futures):
-                question = futures[future]
-                try:
-                    result = future.result()
-                except Exception as exc:
-                    errors.append((question.id, f"{type(exc).__name__}: {exc}"))
-                    continue
-                rows.extend(result["rows"])
-                skipped += result["skipped"]
-                renders += result["renders"]
-                output_frames += result["output_frames"]
-                piped_frames += result["piped_frames"]
+
+        with self.progress(len(questions) * per_question) as bar:
+            with ThreadPoolExecutor(max_workers=workers) as pool:
+                futures = {
+                    pool.submit(self._process_question, question, renderer, layout, bar):
+                        question
+                    for question in questions
+                }
+                for future in as_completed(futures):
+                    question = futures[future]
+                    try:
+                        result = future.result()
+                    except Exception as exc:
+                        errors.append((question.id, f"{type(exc).__name__}: {exc}"))
+                        continue
+                    rows.extend(result["rows"])
+                    skipped += result["skipped"]
+                    renders += result["renders"]
+                    output_frames += result["output_frames"]
+                    piped_frames += result["piped_frames"]
 
         for row in sorted(rows, key=lambda r: r.sample_id):
             manifest.add(row)
@@ -227,7 +232,8 @@ class WbwMcqGenerator(Generator):
     # -- per-question work -------------------------------------------------
 
     def _process_question(
-        self, question: Question, renderer: FrameRenderer, layout: RunLayout
+        self, question: Question, renderer: FrameRenderer, layout: RunLayout,
+        bar=None,
     ) -> dict:
         params = self.params
         fps = self.encode.fps
@@ -283,6 +289,8 @@ class WbwMcqGenerator(Generator):
                     **common,
                 )
             )
+            if bar is not None:
+                bar.update()
 
         # ── video conditions ────────────────────────────────────────────
         # Frames are built once per mode and reused across every speed.
@@ -327,6 +335,8 @@ class WbwMcqGenerator(Generator):
                         **common,
                     )
                 )
+                if bar is not None:
+                    bar.update()
 
         return {
             "rows": rows,

@@ -238,25 +238,27 @@ class ChessGenerator(Generator):
         total_piped_frames = 0
 
         workers = min(self.config.run.workers, params.num_games)
-        with ThreadPoolExecutor(max_workers=workers) as pool:
-            futures = {
-                pool.submit(
-                    self._process_game, index, renderer, plans, required_moves, layout
-                ): index
-                for index in range(params.num_games)
-            }
-            for future in as_completed(futures):
-                index = futures[future]
-                try:
-                    result = future.result()
-                except Exception as exc:  # keep one bad game from killing the run
-                    errors.append((f"game{index:04d}", f"{type(exc).__name__}: {exc}"))
-                    continue
-                rows.extend(result["rows"])
-                skipped += result["skipped"]
-                total_renders += result["renders"]
-                total_output_frames += result["output_frames"]
-                total_piped_frames += result["piped_frames"]
+        with self.progress(params.num_games * len(plans), unit="clip") as bar:
+            with ThreadPoolExecutor(max_workers=workers) as pool:
+                futures = {
+                    pool.submit(
+                        self._process_game, index, renderer, plans, required_moves,
+                        layout, bar,
+                    ): index
+                    for index in range(params.num_games)
+                }
+                for future in as_completed(futures):
+                    index = futures[future]
+                    try:
+                        result = future.result()
+                    except Exception as exc:  # one bad game must not kill the run
+                        errors.append((f"game{index:04d}", f"{type(exc).__name__}: {exc}"))
+                        continue
+                    rows.extend(result["rows"])
+                    skipped += result["skipped"]
+                    total_renders += result["renders"]
+                    total_output_frames += result["output_frames"]
+                    total_piped_frames += result["piped_frames"]
 
         for row in sorted(rows, key=lambda r: r.sample_id):
             manifest.add(row)
@@ -287,6 +289,7 @@ class ChessGenerator(Generator):
         plans: dict[str, ClipPlan],
         required_moves: int,
         layout: RunLayout,
+        bar=None,
     ) -> dict:
         params = self.params
         record = self._play_long_enough_game(index, required_moves)
@@ -360,6 +363,8 @@ class ChessGenerator(Generator):
                     motion=params.motion,
                 )
             )
+            if bar is not None:
+                bar.update()
 
         return {
             "rows": rows,

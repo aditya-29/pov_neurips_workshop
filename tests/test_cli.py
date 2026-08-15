@@ -168,10 +168,20 @@ class TestFailedRunCleanup:
     """A run that fails before producing anything must leave no directory."""
 
     def config(self, tmp_path: Path, questions: str) -> dict:
+        # These tests are about run-directory lifecycle, not rendering, so keep
+        # the media tiny — the defaults would encode 14 full-size videos,
+        # including a 60-frames-per-word one, for no added coverage.
         return {
             "experiment": "wbw_mcq",
             "run": {"output_root": str(tmp_path / "data"), "run_id": "r1"},
-            "params": {"questions_path": questions},
+            "video": {"fps": 10, "preset": "ultrafast", "crf": 40},
+            "params": {
+                "questions_path": questions,
+                "static_image": True,
+                "modes": [],
+                "canvas": {"width": 160, "height": 120, "static_font_size": 8,
+                           "static_padding": 8, "video_padding": 8},
+            },
         }
 
     def test_missing_source_data_leaves_no_run_directory(self, tmp_path):
