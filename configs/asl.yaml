@@ -1,0 +1,56 @@
+# American Sign Language clips, sampled evenly across duration buckets.
+#
+#   pov generate -c configs/asl.yaml
+#
+# Reads the How2Sign metadata, measures every referenced video, buckets by
+# duration, samples evenly, then cuts and normalises the sampled clips into the
+# run directory. Measured durations are cached under
+# <output_root>/asl/.pov_durations.json, so a repeat run skips the probing.
+
+experiment: asl
+
+run:
+  output_root: data
+  seed: 42
+  workers: 8
+  overwrite: false
+  resume: true
+
+video:
+  fps: 30
+  crf: 20
+  preset: veryfast
+  tune: null              # real footage — stillimage tuning would hurt here
+  pix_fmt: yuv420p
+  codec: libx264
+
+params:
+  # Point these at your How2Sign download.
+  metadata_csv: /path/to/how2sign_val.csv
+  video_dir: /path/to/raw_videos
+
+  delimiter: auto         # How2Sign ships tab-separated; auto detects it
+  id_column: SENTENCE_NAME
+  text_column: SENTENCE   # becomes ground_truth in the manifest
+  video_extension: .mp4
+  duration_column: null   # set to reuse durations already in the CSV, skipping probing
+
+  # Half-open buckets [low, high): [0,3), [3,5), [5,10), …
+  buckets:
+    edges: [0, 3, 5, 10, 15, 20, 25, 30]
+    # labels: ["<3s", "<5s", "<10s", "<15s", "<20s", "<25s", "<30s"]
+
+  # Exactly one of these:
+  samples_per_bucket: 28
+  # total_samples: 200    # split across buckets, remainder to the earliest ones
+
+  scale_height: 480       # width follows the aspect ratio, forced even; null keeps source
+  target_fps: null        # null uses video.fps
+  max_clip_seconds: null  # truncate long clips
+
+  use_time_range: false   # true cuts START..END out of each source video
+  start_column: START
+  end_column: END
+
+  probe_workers: 16
+  duration_cache: auto    # auto | a path | none

@@ -1,0 +1,62 @@
+# Synthetic chess games rendered as clips of increasing duration.
+#
+#   pov generate -c configs/chess.yaml
+#
+# One game yields one clip per duration below. The clips are prefixes of the
+# same game, so frames are rendered once and reused across every duration.
+
+experiment: chess
+
+run:
+  output_root: data
+  # run_id: my-run        # omit for a timestamped id like 20260814-201133-a1b2c3d4e5f6
+  seed: 1234
+  workers: 8
+  overwrite: false        # true wipes the run directory first
+  resume: true            # skip clips that already exist
+
+video:
+  fps: 30
+  crf: 18                 # 0 = lossless, 51 = worst; 18 is visually lossless
+  preset: veryfast        # ultrafast…veryslow — trades encode speed for size
+  tune: stillimage        # right choice for held board positions
+  pix_fmt: yuv420p
+  codec: libx264
+  threads: 0              # 0 = let ffmpeg choose
+
+params:
+  num_games: 20
+  max_half_moves: 600     # must exceed the moves the longest duration needs
+  max_game_attempts: 12   # random games end early; retry with new seeds if too short
+
+  # static   = one frame per half-move, held. Every frame is unique, so cost is
+  #            proportional to moves, not to clip length. Fast.
+  # animated = pieces slide between squares (the original look). Slide frames
+  #            are all distinct, so this is far heavier to render and encode.
+  motion: static
+
+  durations:
+    - {label: 5s,    seconds: 5}
+    - {label: 10s,   seconds: 10}
+    - {label: 30s,   seconds: 30}
+    - {label: 1min,  seconds: 60}
+    - {label: 2min,  seconds: 120}
+    - {label: 5min,  seconds: 300}
+    - {label: 10min, seconds: 600}
+
+  timing:
+    intro_frames: 60      # opening position card (capped by intro_share)
+    hold_frames: 36       # frames each position is held in static motion
+    slide_frames: 14      # animated motion only
+    pause_frames: 22      # animated motion only
+    outro_frames: 120     # final position hold (capped by outro_share)
+    intro_share: 0.10     # intro may not exceed 10% of the target duration
+    outro_share: 0.20     # outro may not exceed 20% — keeps short clips honest
+
+  theme:
+    square: 48            # 48 -> 416x480 frames (both dimensions must be even)
+    padding: 16
+    panel: 64             # bottom label strip; set 0 to remove it
+
+  show_labels: true       # draw the move text under the board
+  use_svg_pieces: true    # use python-chess SVG art when cairosvg is installed

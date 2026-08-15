@@ -1,0 +1,60 @@
+# MMLU-style questions shown all at once (image) vs. one word at a time (video).
+#
+#   pov generate -c configs/wbw_mcq.yaml
+#
+# Per question this writes:
+#   <qid>_static.jpg              the whole question as one image
+#   <qid>_vanishing_<speed>.mp4   one word at a time, blank gap between words
+#   <qid>_cumulative_<speed>.mp4  words accumulate; last frame = whole question
+#
+# Speed changes only how long each frame is held, so the frames are rendered
+# once per question and re-encoded at every speed.
+
+experiment: wbw_mcq
+
+run:
+  output_root: data
+  seed: 1234
+  workers: 8
+  overwrite: false
+  resume: true
+
+video:
+  fps: 30
+  crf: 18
+  preset: veryfast
+  tune: stillimage
+  pix_fmt: yuv420p
+  codec: libx264
+
+params:
+  # .jsonl accepts {stem, options:{A..D}, answer:"B"} or the HuggingFace MMLU
+  # shape {question, choices:[...], answer:1}. A .csv is read as the original
+  # headerless MMLU release: question,A,B,C,D,answer
+  questions_path: examples/questions.jsonl
+  questions_format: auto        # auto | jsonl | mmlu_csv
+
+  limit: null                   # cap the number of questions (null = all)
+  shuffle: false                # shuffle before applying limit, using run.seed
+
+  static_image: true            # the image condition
+  modes: [vanishing, cumulative]
+
+  speeds:                       # words per second -> frames per word at 30 fps
+    slow: 0.5                   # 60 frames/word
+    normal: 2.0                 # 15 frames/word
+    fast: 5.0                   #  6 frames/word
+
+  blank_gap_frames: 4           # blank frames between words in vanishing mode
+  min_frames_per_word: 1
+  jpeg_quality: 90
+
+  canvas:
+    width: 1200                 # both dimensions must be even for yuv420p
+    height: 800
+    video_font_size: 36
+    video_padding: 80
+    video_line_gap: 8
+    static_font_size: 18
+    static_padding: 60
+    static_line_gap: 14
