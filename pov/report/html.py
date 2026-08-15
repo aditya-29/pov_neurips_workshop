@@ -73,7 +73,7 @@ def build_report(
     return output_path
 
 
-def build_report_from_csv(
+def build_report_from_file(
     scored_csv: str | Path,
     output_path: str | Path,
     *,
@@ -81,7 +81,10 @@ def build_report_from_csv(
     title: str | None = None,
     max_samples: int | None = None,
 ) -> Path:
-    """Build a report straight from a scored.csv written by `pov eval`."""
+    """Build a report straight from the scored rows written by `pov eval`.
+
+    Accepts the JSONL `pov eval` writes, or a CSV.
+    """
     from pov.eval.runner import summarise
     from pov.manifest import read_manifest
 
@@ -489,10 +492,14 @@ _TEMPLATE = """<!doctype html>
   </div>
   <div id="samples"></div>
 
-  <footer>pov report · scores shown are per-sample values from scored.csv</footer>
+  <footer>pov report · scores shown are per-sample values from the scored rows</footer>
 </div>
 <script type="application/json" id="pov-data">{data}</script>
 <script>{script}</script>
 </body>
 </html>
 """
+
+
+#: Former name, kept so existing callers and notebooks keep working.
+build_report_from_csv = build_report_from_file

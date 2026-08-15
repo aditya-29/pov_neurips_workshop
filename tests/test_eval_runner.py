@@ -7,6 +7,7 @@ from pathlib import Path
 
 import pytest
 
+from pov.errors import PovError
 from pov.eval import EvalError, evaluate, get_scorer, summarise
 from pov.eval.base import SCORE_PREFIX
 from pov.manifest import read_manifest
@@ -201,10 +202,67 @@ class TestEvaluate:
         assert report.rows[0][f"{SCORE_PREFIX}strict"] == 1.0
 
     def test_empty_file_rejected(self, tmp_path):
+        # Header only, no data rows. The manifest reader catches this, so match
+        # on PovError — the base every deliberate pov error shares.
         path = tmp_path / "p.csv"
         path.write_text("sample_id,experiment,model_output\n")
-        with pytest.raises(EvalError, match="no rows"):
+        with pytest.raises(PovError, match="file is empty"):
             evaluate(path, write=False)
+
+    def test_empty_jsonl_rejected(self, tmp_path):
+        path = tmp_path / "p.jsonl"
+        path.write_text("")
+        with pytest.raises(PovError, match="file is empty"):
+            evaluate(path, write=False)
+
+
+class TestJsonlRoundTrip:
+    """Eval mirrors the format it is given."""
+
+    def write_jsonl_rows(self, path: Path, rows: list[dict]) -> Path:
+        import json
+
+        with open(path, "w", encoding="utf-8") as f:
+            for row in rows:
+                f.write(json.dumps(row) + "\n")
+        return path
+
+    def test_jsonl_in_jsonl_out(self, tmp_path):
+        path = self.write_jsonl_rows(tmp_path / "preds.jsonl", mcq_rows())
+        report = evaluate(path, tmp_path / "out")
+        assert report.scored_path.name == "scored.jsonl"
+        assert report.summary_path.name == "summary.jsonl"
+
+    def test_csv_in_csv_out(self, tmp_path):
+        path = write_csv(tmp_path / "preds.csv", mcq_rows())
+        report = evaluate(path, tmp_path / "out")
+        assert report.scored_path.name == "scored.csv"
+        assert report.summary_path.name == "summary.csv"
+
+    def test_scored_jsonl_reloads_with_types(self, tmp_path):
+        path = self.write_jsonl_rows(tmp_path / "preds.jsonl", mcq_rows())
+        report = evaluate(path, tmp_path / "out")
+        rows = read_manifest(report.scored_path)
+        assert rows[0][f"{SCORE_PREFIX}correct"] == 1.0
+        assert isinstance(rows[0][f"{SCORE_PREFIX}correct"], float)
+
+    def test_both_formats_give_the_same_scores(self, tmp_path):
+        jsonl = evaluate(
+            self.write_jsonl_rows(tmp_path / "p.jsonl", mcq_rows()), write=False
+        )
+        csv_report = evaluate(write_csv(tmp_path / "p.csv", mcq_rows()), write=False)
+        assert jsonl.overall() == csv_report.overall()
+
+    def test_numeric_types_survive_scoring(self, tmp_path):
+        rows = [{
+            "sample_id": "g1", "experiment": "chess", "condition": "video_5s",
+            "ground_truth": "1 White b2 b3; 1 Black c7 c5", "ground_truth_path": "",
+            "n_half_moves": 2,  # a real int, as JSONL delivers it
+            "model_output": "Move 1: White Pawn b2b3\nMove 1: Black Pawn c7c5",
+        }]
+        report = evaluate(self.write_jsonl_rows(tmp_path / "p.jsonl", rows), write=False)
+        assert report.rows[0][f"{SCORE_PREFIX}strict"] == 1.0
+        assert report.rows[0][f"{SCORE_PREFIX}moves_expected"] == 2
 
 
 class TestOutputFiles:

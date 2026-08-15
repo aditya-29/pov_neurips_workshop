@@ -24,15 +24,15 @@ never calls a model.
                                     ├── media/                 the videos / images
                                     ├── ground_truth/          full transcripts
                                     ├── config.resolved.yaml   exactly what produced this
-                                    └── manifest.csv           one row per artifact
+                                    └── manifest.jsonl           one row per artifact
                 │
                 ▼
     you run your own model and fill in
       the empty `model_output` column
                 │
                 ▼
-           pov eval  ──────────►  scored.csv   per-row scores
-                                  summary.csv  means per condition
+           pov eval  ──────────►  scored.jsonl   per-row scores
+                                  summary.jsonl  means per condition
                 │
                 ▼
           pov report  ─────────►  report.html  one file, videos playable inline
@@ -110,17 +110,18 @@ Fill the `model_output` column — one row is one media file plus its ground tru
 ```python
 import pandas as pd
 
-df = pd.read_csv("data/chess/<run_id>/manifest.csv")
+df = pd.read_json("data/chess/<run_id>/manifest.jsonl", lines=True)
 run_dir = "data/chess/<run_id>"
 
 for i, row in df.iterrows():
     df.at[i, "model_output"] = my_model(f"{run_dir}/{row.media_path}")
 
-df.to_csv(f"{run_dir}/preds.csv", index=False)
+df.to_json(f"{run_dir}/preds.jsonl", orient="records", lines=True)
 ```
 
-`pov` itself uses only the stdlib `csv` module, so pandas is **not** installed
-with it — `pip install pandas` first, or read and write the CSV with `csv`.
+`pov` itself uses only the stdlib, so pandas is **not** installed with it —
+`pip install pandas` first, or read the file with one `json.loads` per line.
+`pov eval` accepts CSV too, if that is easier to produce.
 
 Comparing several models? Add a `model` column and stack the rows — `pov eval`
 groups by it automatically.
@@ -128,7 +129,7 @@ groups by it automatically.
 ## 3. Evaluate
 
 ```bash
-pov eval -i data/chess/<run_id>/preds.csv
+pov eval -i data/chess/<run_id>/preds.jsonl
 ```
 
 | Experiment | Metrics |
@@ -142,7 +143,7 @@ Scores land in `score_*` columns so they can never collide with a manifest colum
 ## 4. Report
 
 ```bash
-pov report -i data/chess/<run_id>/scored.csv
+pov report -i data/chess/<run_id>/scored.jsonl
 ```
 
 One self-contained HTML file: score tables per condition, plus a searchable,

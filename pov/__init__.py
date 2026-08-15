@@ -2,8 +2,8 @@
 
 Two independent halves, joined by a CSV:
 
-    pov.experiments  →  generation (writes media + manifest.csv)
-    pov.eval         →  scoring (reads manifest.csv + a model_output column)
+    pov.experiments  →  generation (writes media + manifest.jsonl)
+    pov.eval         →  scoring (reads manifest.jsonl + a model_output column)
 
 Nothing in `pov.eval` imports `pov.experiments`, and generation never calls a
 model. See README.md for the end-to-end workflow.

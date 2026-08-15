@@ -1,20 +1,25 @@
-"""The manifest CSV — the single hand-off between generation and evaluation.
+"""The manifest — the single hand-off between generation and evaluation.
 
 Generation writes one row per media artifact. Every row carries the ground
 truth, the media's real properties (fps, frame count, duration, resolution),
 and a flattened copy of the config that produced it, so a row is
 self-describing even if it is pulled out of its run folder.
 
-The last column is `model_output`, written empty. Fill it in with your model's
-prediction and hand the same file to `pov eval`.
+Written as JSONL — one JSON object per line — so values keep their real types
+(an int stays an int, a missing value is null rather than an empty string) and
+there is no field-size limit to trip over on a long chess transcript.
 
-Column order is stable: core columns, then experiment-specific columns
-(alphabetical), then `cfg_*` columns (alphabetical), then `model_output`.
+The last field is `model_output`, written empty. Fill it in with your model's
+prediction and hand the same file to `pov eval`, which also accepts CSV.
+
+Field order is stable: core fields, then experiment-specific fields
+(alphabetical), then `cfg_*` fields (alphabetical), then `model_output`.
 """
 
 from __future__ import annotations
 
 import csv
+import json
 import os
 import sys
 from dataclasses import dataclass, field
@@ -187,25 +192,42 @@ class ManifestWriter:
             MODEL_OUTPUT_COLUMN,
         ]
 
-    def write(self, sort_key=None) -> Path:
-        """Write the manifest. Returns the path written."""
-        self.path.parent.mkdir(parents=True, exist_ok=True)
+    def records(self, sort_key=None) -> list[dict]:
+        """Every row as a dict, with fields in the canonical order."""
         fieldnames = self.fieldnames()
-
         rows = sorted(self._rows, key=sort_key) if sort_key else self._rows
 
+        out: list[dict] = []
+        for row in rows:
+            values = dict(self.config_columns)
+            values.update(row.to_dict())
+            # Rebuild in canonical order; anything this row lacks is null
+            # rather than an empty string, so "not applicable" (fps on an
+            # image) stays distinguishable from zero.
+            record = {name: values.get(name) for name in fieldnames}
+            record[MODEL_OUTPUT_COLUMN] = ""
+            out.append(record)
+        return out
+
+    def write(self, sort_key=None) -> Path:
+        """Write the manifest atomically. Returns the path written.
+
+        Format follows the suffix: `.csv` writes CSV, anything else writes
+        JSONL (the default, and what the run layout uses).
+        """
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+        records = self.records(sort_key=sort_key)
+
         tmp = self.path.with_suffix(self.path.suffix + ".tmp")
-        with open(tmp, "w", encoding="utf-8", newline="") as f:
-            writer = csv.DictWriter(f, fieldnames=fieldnames, extrasaction="raise")
-            writer.writeheader()
-            for row in rows:
-                record = {name: "" for name in fieldnames}
-                record.update(self.config_columns)
-                record.update(
-                    {k: _cell(v) for k, v in row.to_dict().items()}
-                )
-                record[MODEL_OUTPUT_COLUMN] = ""
-                writer.writerow(record)
+        if self.path.suffix.lower() == ".csv":
+            with open(tmp, "w", encoding="utf-8", newline="") as f:
+                writer = csv.DictWriter(f, fieldnames=self.fieldnames(),
+                                        extrasaction="raise")
+                writer.writeheader()
+                for record in records:
+                    writer.writerow({k: _cell(v) for k, v in record.items()})
+        else:
+            write_jsonl(tmp, records)
         os.replace(tmp, self.path)
         return self.path
 
@@ -222,24 +244,68 @@ def _cell(value: Any) -> Any:
     return value
 
 
+def write_jsonl(path: str | Path, records: Iterable[Mapping]) -> Path:
+    """Write one JSON object per line."""
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with open(path, "w", encoding="utf-8") as f:
+        for record in records:
+            f.write(json.dumps(record, ensure_ascii=False, default=str))
+            f.write("\n")
+    return path
+
+
 def read_manifest(path: str | Path) -> list[dict]:
-    """Read a manifest CSV into a list of dicts (all values are strings)."""
+    """Read a manifest into a list of dicts.
+
+    Accepts JSONL (what generation writes, values keep their real types) and
+    CSV (values are strings) — a manifest that has been through pandas or a
+    spreadsheet on its way to gaining a `model_output` column still loads.
+    """
     path = Path(path)
     if not path.exists():
         raise ManifestError(f"manifest not found: {path}")
+
+    rows = (
+        _read_csv(path) if path.suffix.lower() == ".csv" else _read_jsonl(path)
+    )
+    if not rows:
+        raise ManifestError(f"{path}: file is empty")
+
+    missing = [c for c in ("sample_id", "experiment") if c not in rows[0]]
+    if missing:
+        raise ManifestError(f"{path}: not a pov manifest — missing field(s) {missing}")
+    return rows
+
+
+def _read_jsonl(path: Path) -> list[dict]:
+    rows: list[dict] = []
+    with open(path, encoding="utf-8") as f:
+        for line_no, line in enumerate(f, start=1):
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                record = json.loads(line)
+            except json.JSONDecodeError as exc:
+                raise ManifestError(f"{path}:{line_no}: invalid JSON — {exc}") from exc
+            if not isinstance(record, dict):
+                raise ManifestError(
+                    f"{path}:{line_no}: expected a JSON object, got "
+                    f"{type(record).__name__}"
+                )
+            rows.append(record)
+    return rows
+
+
+def _read_csv(path: Path) -> list[dict]:
     # Ground-truth cells can be large; raise the field limit for long transcripts.
     _raise_csv_field_limit()
     with open(path, encoding="utf-8", newline="") as f:
         reader = csv.DictReader(f)
         if reader.fieldnames is None:
-            raise ManifestError(f"{path}: file is empty")
-        missing = [c for c in ("sample_id", "experiment") if c not in reader.fieldnames]
-        if missing:
-            raise ManifestError(
-                f"{path}: not a pov manifest — missing column(s) {missing}"
-            )
-        rows = [dict(row) for row in reader]
-    return rows
+            return []
+        return [dict(row) for row in reader]
 
 
 def store_ground_truth(

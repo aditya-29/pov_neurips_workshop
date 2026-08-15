@@ -1,6 +1,6 @@
 ---
 name: webpage
-description: Compile pov evaluation results into a single self-contained HTML page with aggregate score tables and a per-sample browser that plays the actual videos inline. Use after `pov eval` has produced scored.csv, or when asked to visualise/report/summarise benchmark results as a web page.
+description: Compile pov evaluation results into a single self-contained HTML page with aggregate score tables and a per-sample browser that plays the actual videos inline. Use after `pov eval` has produced scored.jsonl, or when asked to visualise/report/summarise benchmark results as a web page.
 ---
 
 # webpage
@@ -16,29 +16,29 @@ therefore stay next to its run directory (see *Placement* below).
 
 ## Prerequisites
 
-A scored CSV from `pov eval`:
+Scored rows from `pov eval`:
 
 ```bash
-pov eval -i data/<experiment>/<run_id>/manifest_with_predictions.csv
-# writes scored.csv + summary.csv into that run directory
+pov eval -i data/<experiment>/<run_id>/manifest_with_predictions.jsonl
+# writes scored.jsonl + summary.jsonl into that run directory
 ```
 
 If the user has not run eval yet, do that first — the report needs the
-`score_*` columns.
+`score_*` fields.
 
 ## Building the page
 
 Default (writes `scored.html` beside the input):
 
 ```bash
-pov report -i data/<experiment>/<run_id>/scored.csv
+pov report -i data/<experiment>/<run_id>/scored.jsonl
 ```
 
 Explicit output path and title:
 
 ```bash
 pov report \
-  -i data/chess/<run_id>/scored.csv \
+  -i data/chess/<run_id>/scored.jsonl \
   -o reports/chess.html \
   --title "Chess transcription — video duration sweep"
 ```
@@ -46,7 +46,7 @@ pov report \
 Options:
 
 - `-o, --output` — where to write the `.html` (default: input path with `.html`)
-- `--run-dir` — directory holding `media/`, if the CSV was moved away from its run
+- `--run-dir` — directory holding `media/`, if the file was moved away from its run
 - `--title` — page heading
 - `--max-samples N` — cap how many samples are listed (the tables still cover all rows)
 
@@ -97,10 +97,10 @@ contains `media/`.
 ## Programmatic use
 
 ```python
-from pov.report import build_report_from_csv
+from pov.report import build_report_from_file
 
-build_report_from_csv(
-    "data/chess/run1/scored.csv",
+build_report_from_file(
+    "data/chess/run1/scored.jsonl",
     "reports/chess.html",
     title="Chess duration sweep",
 )

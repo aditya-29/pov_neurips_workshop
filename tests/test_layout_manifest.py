@@ -45,7 +45,7 @@ class TestRunLayout:
         assert layout.run_dir.name == "run1"
         assert layout.run_dir.parent.name == "chess"
         assert layout.media_dir.is_dir()
-        assert layout.manifest_path.name == "manifest.csv"
+        assert layout.manifest_path.name == "manifest.jsonl"
         assert layout.config_path.name == "config.resolved.yaml"
 
     def test_ground_truth_dir_is_not_created_up_front(self, layout):
@@ -238,6 +238,92 @@ class TestManifestWriter:
 # ── read_manifest ─────────────────────────────────────────────────────────────
 
 
+class TestJsonlManifest:
+    """JSONL is the written format; CSV stays readable for round-trips."""
+
+    def test_writes_one_json_object_per_line(self, tmp_path):
+        import json
+
+        writer = ManifestWriter(tmp_path / "manifest.jsonl")
+        writer.add(make_row(sample_id="a"))
+        writer.add(make_row(sample_id="b"))
+        path = writer.write(sort_key=lambda r: r.sample_id)
+
+        lines = path.read_text(encoding="utf-8").strip().split("\n")
+        assert len(lines) == 2
+        assert [json.loads(line)["sample_id"] for line in lines] == ["a", "b"]
+
+    def test_numbers_keep_their_type(self, tmp_path):
+        writer = ManifestWriter(tmp_path / "m.jsonl")
+        writer.add(make_row(n_frames=120, duration_sec=4.0, width=416))
+        row = read_manifest(writer.write())[0]
+        assert row["n_frames"] == 120 and isinstance(row["n_frames"], int)
+        assert row["duration_sec"] == 4.0
+        assert row["width"] == 416
+
+    def test_absent_values_are_null_not_empty_string(self, tmp_path):
+        # "not applicable" (fps on a still image) must stay distinguishable
+        # from zero, which the CSV format could not express.
+        writer = ManifestWriter(tmp_path / "m.jsonl")
+        writer.add(make_row(fps=None, duration_sec=None))
+        row = read_manifest(writer.write())[0]
+        assert row["fps"] is None and row["duration_sec"] is None
+
+    def test_field_order_is_preserved(self, tmp_path):
+        writer = ManifestWriter(tmp_path / "m.jsonl",
+                                config_columns={"cfg_experiment": "chess"})
+        writer.add(make_row(extra={"n_half_moves": 5}))
+        row = read_manifest(writer.write())[0]
+        keys = list(row)
+        assert keys[: len(CORE_FIELDS)] == list(CORE_FIELDS)
+        assert keys[-1] == MODEL_OUTPUT_COLUMN
+        assert keys.index("n_half_moves") < keys.index("cfg_experiment")
+
+    def test_long_ground_truth_needs_no_field_limit(self, tmp_path):
+        # CSV needed csv.field_size_limit raised for this; JSONL does not care.
+        long_text = "1 White a2 a3; " * 40000
+        writer = ManifestWriter(tmp_path / "m.jsonl")
+        writer.add(make_row(ground_truth=long_text))
+        assert read_manifest(writer.write())[0]["ground_truth"] == long_text
+
+    def test_unicode_and_newlines_survive(self, tmp_path):
+        nasty = 'He said "hi",\nthen left — ♔ 日本語'
+        writer = ManifestWriter(tmp_path / "m.jsonl")
+        writer.add(make_row(ground_truth=nasty))
+        assert read_manifest(writer.write())[0]["ground_truth"] == nasty
+
+    def test_csv_is_still_written_when_asked(self, tmp_path):
+        writer = ManifestWriter(tmp_path / "m.csv")
+        writer.add(make_row())
+        path = writer.write()
+        assert path.read_text().startswith("sample_id,")
+
+    def test_csv_is_still_readable(self, tmp_path):
+        # A manifest that went through pandas and came back as CSV must load.
+        writer = ManifestWriter(tmp_path / "m.csv")
+        writer.add(make_row(sample_id="a", n_frames=12))
+        rows = read_manifest(writer.write())
+        assert rows[0]["sample_id"] == "a"
+        assert rows[0]["n_frames"] == "12"  # CSV has no types
+
+    def test_malformed_jsonl_reports_the_line(self, tmp_path):
+        path = tmp_path / "m.jsonl"
+        path.write_text('{"sample_id": "a", "experiment": "chess"}\nnot json\n')
+        with pytest.raises(ManifestError, match=":2:"):
+            read_manifest(path)
+
+    def test_non_object_line_rejected(self, tmp_path):
+        path = tmp_path / "m.jsonl"
+        path.write_text('[1, 2, 3]\n')
+        with pytest.raises(ManifestError, match="expected a JSON object"):
+            read_manifest(path)
+
+    def test_blank_lines_are_ignored(self, tmp_path):
+        path = tmp_path / "m.jsonl"
+        path.write_text('{"sample_id": "a", "experiment": "chess"}\n\n\n')
+        assert len(read_manifest(path)) == 1
+
+
 class TestReadManifest:
     def test_missing_file(self, tmp_path):
         with pytest.raises(ManifestError, match="not found"):
@@ -252,7 +338,7 @@ class TestReadManifest:
     def test_rejects_non_manifest_csv(self, tmp_path):
         path = tmp_path / "other.csv"
         path.write_text("a,b\n1,2\n")
-        with pytest.raises(ManifestError, match="missing column"):
+        with pytest.raises(ManifestError, match="missing field"):
             read_manifest(path)
 
 

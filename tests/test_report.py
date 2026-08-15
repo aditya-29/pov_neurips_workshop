@@ -196,5 +196,5 @@ class TestBuildReportFromCsv:
     def test_empty_csv_rejected(self, tmp_path):
         path = tmp_path / "scored.csv"
         path.write_text("sample_id,experiment\n")
-        with pytest.raises(ValueError, match="no rows"):
+        with pytest.raises(ValueError, match="file is empty"):
             build_report_from_csv(path, tmp_path / "r.html")

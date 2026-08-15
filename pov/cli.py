@@ -1,8 +1,8 @@
 """Command-line interface.
 
     pov generate -c configs/chess.yaml
-    pov eval -i data/chess/<run>/manifest.csv
-    pov report -i data/chess/<run>/scored.csv -o report.html
+    pov eval -i data/chess/<run>/manifest.jsonl
+    pov report -i data/chess/<run>/scored.jsonl -o report.html
     pov validate -c configs/chess.yaml
     pov experiments
 """
@@ -29,7 +29,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     # -- generate ----------------------------------------------------------
     generate = subparsers.add_parser(
-        "generate", help="generate media and a manifest CSV from a YAML config"
+        "generate", help="generate media and a manifest from a YAML config"
     )
     generate.add_argument("-c", "--config", required=True, help="path to a YAML config")
     generate.add_argument(
@@ -49,19 +49,19 @@ def build_parser() -> argparse.ArgumentParser:
 
     # -- eval --------------------------------------------------------------
     evaluate_cmd = subparsers.add_parser(
-        "eval", help="score a manifest CSV that has a model_output column"
+        "eval", help="score a manifest that has a model_output column"
     )
     evaluate_cmd.add_argument(
-        "-i", "--input", required=True, help="CSV with a filled-in model_output column"
+        "-i", "--input", required=True, help="manifest (.jsonl or .csv) with a filled-in model_output column"
     )
     evaluate_cmd.add_argument(
         "-o", "--output-dir", default=None,
-        help="where to write scored.csv and summary.csv (default: next to the input)",
+        help="where to write scored/summary output (default: next to the input)",
     )
     evaluate_cmd.add_argument(
         "--run-dir", default=None,
         help="run directory that ground_truth_path values are relative to "
-             "(default: the input CSV's directory)",
+             "(default: the input file's directory)",
     )
     evaluate_cmd.add_argument(
         "--group-by", default=None,
@@ -78,11 +78,12 @@ def build_parser() -> argparse.ArgumentParser:
     report = subparsers.add_parser(
         "report", help="build a single-file HTML report from scored results"
     )
-    report.add_argument("-i", "--input", required=True, help="scored.csv from `pov eval`")
+    report.add_argument("-i", "--input", required=True,
+                    help="scored rows from `pov eval` (.jsonl or .csv)")
     report.add_argument("-o", "--output", default=None, help="output .html path")
     report.add_argument(
         "--run-dir", default=None,
-        help="run directory holding media/ (default: the input CSV's directory)",
+        help="run directory holding media/ (default: the input file's directory)",
     )
     report.add_argument("--title", default=None, help="page title")
     report.add_argument(
@@ -190,10 +191,10 @@ def _cmd_eval(args: argparse.Namespace) -> int:
 
 
 def _cmd_report(args: argparse.Namespace) -> int:
-    from pov.report import build_report_from_csv
+    from pov.report import build_report_from_file
 
     output = args.output or str(Path(args.input).with_suffix(".html"))
-    path = build_report_from_csv(
+    path = build_report_from_file(
         args.input,
         output,
         run_dir=args.run_dir,

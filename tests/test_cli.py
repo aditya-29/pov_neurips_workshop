@@ -205,7 +205,7 @@ class TestFailedRunCleanup:
     def test_a_successful_run_keeps_its_directory(self, tmp_path, questions_file):
         path = write_yaml(tmp_path / "c.yaml", self.config(tmp_path, str(questions_file)))
         assert main(["generate", "-c", str(path)]) == 0
-        assert (tmp_path / "data" / "wbw_mcq" / "r1" / "manifest.csv").exists()
+        assert (tmp_path / "data" / "wbw_mcq" / "r1" / "manifest.jsonl").exists()
 
     def test_existing_output_is_never_discarded(self, tmp_path):
         # A pre-existing run directory belongs to an earlier run; a later

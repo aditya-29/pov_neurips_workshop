@@ -1,10 +1,12 @@
 """Evaluation driver.
 
-Reads a manifest CSV that has been given a `model_output` column, scores every
-row with the scorer for its experiment, and writes:
+Reads a manifest that has been given a `model_output` column, scores every row
+with the scorer for its experiment, and writes:
 
-    scored.csv    every input column plus `score_*` columns
-    summary.csv   mean of each metric, grouped by condition (and `model` if present)
+    scored.jsonl    every input field plus `score_*` fields
+    summary.jsonl   mean of each metric, grouped by condition (and `model`)
+
+JSONL in, JSONL out; CSV in, CSV out.
 
 `pov eval` never calls a model. It only reads what you put in `model_output`.
 """
@@ -21,7 +23,13 @@ from pov.eval.asl import AslScorer
 from pov.eval.base import SCORE_PREFIX, Scorer
 from pov.eval.chess import ChessScorer
 from pov.eval.mcq import McqScorer
-from pov.manifest import MODEL_OUTPUT_COLUMN, ManifestError, load_ground_truth, read_manifest
+from pov.manifest import (
+    MODEL_OUTPUT_COLUMN,
+    ManifestError,
+    load_ground_truth,
+    read_manifest,
+    write_jsonl,
+)
 
 from pov.errors import PovError
 
@@ -98,7 +106,7 @@ def evaluate(
     group_by: Sequence[str] | None = None,
     write: bool = True,
 ) -> EvalReport:
-    """Score `input_csv` and (optionally) write scored.csv and summary.csv."""
+    """Score `input_csv` and (optionally) write the scored rows and summary."""
     input_path = Path(input_csv)
     rows = read_manifest(input_path)
     if not rows:
@@ -169,8 +177,11 @@ def evaluate(
     if write:
         target = Path(output_dir) if output_dir else input_path.parent
         target.mkdir(parents=True, exist_ok=True)
-        report.scored_path = _write_csv(target / "scored.csv", scored_rows)
-        report.summary_path = _write_csv(target / "summary.csv", summary)
+        # Match the input's format: hand eval a JSONL manifest and the results
+        # come back as JSONL; hand it a CSV and they come back as CSV.
+        suffix = ".csv" if input_path.suffix.lower() == ".csv" else ".jsonl"
+        report.scored_path = _write_rows(target / f"scored{suffix}", scored_rows)
+        report.summary_path = _write_rows(target / f"summary{suffix}", summary)
 
     return report
 
@@ -242,7 +253,8 @@ def _is_numeric(value: Any) -> bool:
     return False
 
 
-def _write_csv(path: Path, rows: Sequence[Mapping]) -> Path:
+def _write_rows(path: Path, rows: Sequence[Mapping]) -> Path:
+    """Write rows atomically, as JSONL or CSV depending on the suffix."""
     path.parent.mkdir(parents=True, exist_ok=True)
     fieldnames: list[str] = []
     for row in rows:
@@ -251,11 +263,15 @@ def _write_csv(path: Path, rows: Sequence[Mapping]) -> Path:
                 fieldnames.append(key)
 
     tmp = path.with_suffix(path.suffix + ".tmp")
-    with open(tmp, "w", encoding="utf-8", newline="") as f:
-        writer = csv.DictWriter(f, fieldnames=fieldnames, extrasaction="ignore")
-        writer.writeheader()
-        for row in rows:
-            writer.writerow({name: row.get(name, "") for name in fieldnames})
+    if path.suffix.lower() == ".csv":
+        with open(tmp, "w", encoding="utf-8", newline="") as f:
+            writer = csv.DictWriter(f, fieldnames=fieldnames, extrasaction="ignore")
+            writer.writeheader()
+            for row in rows:
+                writer.writerow({name: row.get(name, "") for name in fieldnames})
+    else:
+        # Fill missing keys so every line carries the same schema.
+        write_jsonl(tmp, [{name: row.get(name) for name in fieldnames} for row in rows])
     tmp.replace(path)
     return path
 

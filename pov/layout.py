@@ -6,7 +6,7 @@ Every run of every experiment produces the same shape::
         media/                  generated .mp4 / .jpg files
         ground_truth/           full-text ground truth too large for a CSV cell
         config.resolved.yaml    exactly what produced this run
-        manifest.csv            one row per media artifact  ← eval reads this
+        manifest.jsonl          one JSON object per media artifact  ← eval reads this
 
 Media paths recorded in the manifest are **relative to the run directory**, so a
 run folder can be moved or shared without invalidating it.
@@ -22,7 +22,7 @@ from pov.errors import PovError
 
 MEDIA_DIRNAME = "media"
 GROUND_TRUTH_DIRNAME = "ground_truth"
-MANIFEST_FILENAME = "manifest.csv"
+MANIFEST_FILENAME = "manifest.jsonl"
 CONFIG_FILENAME = "config.resolved.yaml"
 
 

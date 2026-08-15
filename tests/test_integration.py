@@ -75,8 +75,9 @@ class TestChessGeneration:
     def test_manifest_carries_config_and_provenance(self, chess_config):
         result = run(chess_config)
         row = read_manifest(result.manifest_path)[0]
-        assert row["cfg_params.num_games"] == "2"
-        assert row["cfg_video.fps"] == "30"
+        # JSONL keeps real types: these are numbers, not strings.
+        assert row["cfg_params.num_games"] == 2
+        assert row["cfg_video.fps"] == 30
         assert row["config_hash"] and row["pov_version"] and row["generated_at"]
         assert row["seed"] and row["run_id"] == "test"
         assert row[MODEL_OUTPUT_COLUMN] == ""
