@@ -9,6 +9,7 @@ every experiment.
 from __future__ import annotations
 
 import datetime as _dt
+import shutil
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -16,6 +17,7 @@ from typing import Any
 
 from pov import __version__
 from pov.config import Config, Reader
+from pov.errors import PovError
 from pov.layout import RunLayout
 from pov.manifest import ManifestRow, ManifestWriter, store_ground_truth
 from pov.video import EncodeSettings
@@ -98,10 +100,16 @@ class Generator(ABC):
     def check_inputs(self) -> list[str]:
         """Problems that would stop this run, as human-readable strings.
 
-        Used by ``--dry-run``: a plan that cannot execute is not a plan, so the
-        dry run reports missing source data instead of printing a confident
-        summary for a command that fails a second later. Experiments with no
-        external inputs (chess) inherit the empty default.
+        Called by :meth:`run` before anything is written, and by ``--dry-run``:
+        a plan that cannot execute is not a plan. Must be side-effect free.
+        Experiments with no external inputs (chess) inherit the empty default.
+        """
+        return []
+
+    def describe_inputs(self) -> list[str]:
+        """Short lines about the source data, shown by ``--dry-run``.
+
+        Only called once :meth:`check_inputs` is clean.
         """
         return []
 
@@ -113,13 +121,33 @@ class Generator(ABC):
         )
 
     def run(self) -> GenerationResult:
+        # Check source data before creating anything. Otherwise the run
+        # directory, media/, ground_truth/ and config.resolved.yaml are all
+        # written and then abandoned the moment generation discovers its input
+        # is missing — the common failure, and the one that litters output_root.
+        problems = self.check_inputs()
+        if problems:
+            raise PovError(
+                "cannot generate — source data is not ready:\n"
+                + "\n".join(f"  - {problem}" for problem in problems)
+            )
+
+        pre_existing = self.build_layout().exists()
         layout = self.build_layout().create(overwrite=self.config.run.overwrite)
         self.config.write_snapshot(layout.config_path)
 
         manifest = ManifestWriter(
             layout.manifest_path, config_columns=self.config.flatten()
         )
-        stats = self.generate(layout, manifest) or {}
+        try:
+            stats = self.generate(layout, manifest) or {}
+        except BaseException:
+            # A run that fails before producing anything must not leave an
+            # empty timestamped directory behind — a directory of those is
+            # indistinguishable from real runs. A *partial* run is kept: its
+            # media is valid and `resume` can carry on from it.
+            self._discard_if_empty(layout, pre_existing)
+            raise
         manifest.write(sort_key=lambda row: row.sample_id)
 
         return GenerationResult(
@@ -132,6 +160,29 @@ class Generator(ABC):
             errors=list(stats.pop("errors", []) or []),
             stats=stats,
         )
+
+    @staticmethod
+    def _discard_if_empty(layout: RunLayout, pre_existing: bool) -> None:
+        """Remove a run directory that a failed run created and never filled.
+
+        Only removes a directory this run created (`pre_existing` is False) and
+        only when no media was written — never a resumed run's existing output.
+        Cleanup failures are swallowed: the original error is what matters.
+        """
+        if pre_existing:
+            return
+        try:
+            if any(layout.media_dir.iterdir()):
+                return
+            if any(layout.ground_truth_dir.iterdir()):
+                return
+            shutil.rmtree(layout.run_dir, ignore_errors=True)
+            # Drop the experiment directory too if this was its only run.
+            parent = layout.experiment_dir
+            if parent.is_dir() and not any(parent.iterdir()):
+                parent.rmdir()
+        except OSError:
+            pass
 
     # -- helpers for subclasses -------------------------------------------
 

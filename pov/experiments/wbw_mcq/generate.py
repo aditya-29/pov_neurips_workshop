@@ -154,13 +154,17 @@ class WbwMcqGenerator(Generator):
                 "(run: python scripts/fetch_mmlu.py --limit 200)"
             ]
         try:
-            count = len(load_questions(path, self.params.questions_format))
+            load_questions(path, self.params.questions_format)
         except Exception as exc:
             return [f"questions file is unreadable: {path} — {exc}"]
+        return []
+
+    def describe_inputs(self) -> list[str]:
+        count = len(load_questions(self.params.questions_path,
+                                   self.params.questions_format))
         if self.params.limit:
             count = min(count, self.params.limit)
-        print(f"questions  : {count} from {path}")
-        return []
+        return [f"questions  : {count} from {self.params.questions_path}"]
 
     # -- generation --------------------------------------------------------
 

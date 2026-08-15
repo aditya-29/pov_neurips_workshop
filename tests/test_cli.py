@@ -164,6 +164,52 @@ class TestEvalCommand:
         assert err.startswith("error:")
 
 
+class TestFailedRunCleanup:
+    """A run that fails before producing anything must leave no directory."""
+
+    def config(self, tmp_path: Path, questions: str) -> dict:
+        return {
+            "experiment": "wbw_mcq",
+            "run": {"output_root": str(tmp_path / "data"), "run_id": "r1"},
+            "params": {"questions_path": questions},
+        }
+
+    def test_missing_source_data_leaves_no_run_directory(self, tmp_path):
+        # Regression: the run dir, media/, ground_truth/ and config.resolved.yaml
+        # were all created before generation raised, leaving an empty run behind
+        # that looked exactly like a real one.
+        path = write_yaml(
+            tmp_path / "c.yaml", self.config(tmp_path, str(tmp_path / "absent.jsonl"))
+        )
+        assert main(["generate", "-c", str(path)]) == 2
+        assert not (tmp_path / "data" / "wbw_mcq" / "r1").exists()
+        assert not (tmp_path / "data" / "wbw_mcq").exists()
+
+    def test_unreadable_source_leaves_no_run_directory(self, tmp_path):
+        bad = tmp_path / "q.jsonl"
+        bad.write_text("{not json\n")
+        path = write_yaml(tmp_path / "c.yaml", self.config(tmp_path, str(bad)))
+        assert main(["generate", "-c", str(path)]) == 2
+        assert not (tmp_path / "data" / "wbw_mcq" / "r1").exists()
+
+    def test_a_successful_run_keeps_its_directory(self, tmp_path, questions_file):
+        path = write_yaml(tmp_path / "c.yaml", self.config(tmp_path, str(questions_file)))
+        assert main(["generate", "-c", str(path)]) == 0
+        assert (tmp_path / "data" / "wbw_mcq" / "r1" / "manifest.csv").exists()
+
+    def test_existing_output_is_never_discarded(self, tmp_path):
+        # A pre-existing run directory belongs to an earlier run; a later
+        # failure must not delete it.
+        run_dir = tmp_path / "data" / "wbw_mcq" / "r1"
+        (run_dir / "media").mkdir(parents=True)
+        (run_dir / "media" / "keep.mp4").write_bytes(b"earlier run")
+        path = write_yaml(
+            tmp_path / "c.yaml", self.config(tmp_path, str(tmp_path / "absent.jsonl"))
+        )
+        assert main(["generate", "-c", str(path)]) == 2
+        assert (run_dir / "media" / "keep.mp4").exists()
+
+
 class TestReportCommand:
     def test_builds_from_scored_csv(self, tmp_path):
         rows = [{"sample_id": "s1", "experiment": "wbw_mcq", "condition": "static_image",

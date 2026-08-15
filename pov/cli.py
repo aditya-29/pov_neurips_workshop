@@ -137,6 +137,8 @@ def _cmd_generate(args: argparse.Namespace) -> int:
                 print(f"  - {problem}", file=sys.stderr)
             return 2
 
+        for line in generator.describe_inputs():
+            print(line)
         print("config is valid, source data is present; "
               "no media written (--dry-run)")
         return 0

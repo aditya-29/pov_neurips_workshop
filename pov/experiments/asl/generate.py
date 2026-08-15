@@ -163,15 +163,17 @@ class AslGenerator(Generator):
         if not params.video_dir.is_dir():
             problems.append(f"video_dir not found: {params.video_dir}  {hint}")
         else:
-            n_videos = sum(1 for _ in params.video_dir.glob(f"*{params.video_extension}"))
-            if n_videos == 0:
+            if not any(params.video_dir.glob(f"*{params.video_extension}")):
                 problems.append(
                     f"video_dir contains no {params.video_extension} files: "
                     f"{params.video_dir}  {hint}"
                 )
-            elif not problems:
-                print(f"source     : {n_videos} clips in {params.video_dir}")
         return problems
+
+    def describe_inputs(self) -> list[str]:
+        params = self.params
+        n_videos = sum(1 for _ in params.video_dir.glob(f"*{params.video_extension}"))
+        return [f"source     : {n_videos} clips in {params.video_dir}"]
 
     # -- generation --------------------------------------------------------
 
