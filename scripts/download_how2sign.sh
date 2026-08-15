@@ -32,10 +32,19 @@ usage() {
     exit "${1:-0}"
 }
 
+# `shift 2` on a flag given without a value fails under `set -e`, which exits
+# silently with no message at all. Check for the value explicitly instead.
+require_value() {
+    if [[ -z "${2:-}" ]]; then
+        echo "error: $1 requires a value" >&2
+        exit 1
+    fi
+}
+
 while [[ $# -gt 0 ]]; do
     case "$1" in
-        --split) SPLIT="${2:-}"; shift 2 ;;
-        --dest)  DEST="${2:-}";  shift 2 ;;
+        --split) require_value "$1" "${2:-}"; SPLIT="$2"; shift 2 ;;
+        --dest)  require_value "$1" "${2:-}"; DEST="$2";  shift 2 ;;
         --yes|-y) ASSUME_YES=1;  shift ;;
         -h|--help) usage 0 ;;
         *) echo "unknown option: $1" >&2; usage 1 ;;

@@ -163,6 +163,33 @@ class TestChessGeneration:
         assert result.ok
         assert all(r["motion"] == "animated" for r in read_manifest(result.manifest_path))
 
+    def test_notes_flag_a_clip_that_misses_its_label(self, chess_config):
+        # 5s cannot hold a whole number of 36-frame moves plus intro/outro, so
+        # the file is ~3.9s. duration_label must not be taken at face value.
+        chess_config["params"]["timing"] = {"hold_frames": 36}
+        chess_config["params"]["durations"] = [{"label": "5s", "seconds": 5}]
+        chess_config["params"]["num_games"] = 1
+        result = run(chess_config)
+        notes = " ".join(result.stats.get("notes", []))
+        assert "clip '5s'" in notes and "duration_sec records the truth" in notes
+
+    def test_no_note_when_the_clip_matches_its_label(self, chess_config):
+        chess_config["params"]["durations"] = [{"label": "30s", "seconds": 30}]
+        chess_config["params"]["num_games"] = 1
+        chess_config["params"]["max_half_moves"] = 200
+        result = run(chess_config)
+        duration_notes = [n for n in result.stats.get("notes", []) if "clip '" in n]
+        assert duration_notes == []
+
+    def test_notes_flag_inert_svg_setting(self, chess_config):
+        from pov.experiments.chess.render import BoardRenderer, BoardTheme
+
+        if BoardRenderer(BoardTheme(square=16, padding=8, panel=16)).prepare().art.source == "svg":
+            pytest.skip("cairosvg is installed, so the setting is not inert here")
+        chess_config["params"]["use_svg_pieces"] = True
+        notes = " ".join(run(chess_config).stats.get("notes", []))
+        assert "use_svg_pieces is set but" in notes
+
     def test_config_snapshot_round_trips(self, chess_config):
         result = run(chess_config)
         snapshot = yaml.safe_load((result.run_dir / "config.resolved.yaml").read_text())

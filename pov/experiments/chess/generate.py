@@ -211,6 +211,24 @@ class ChessGenerator(Generator):
         }
         required_moves = max(plan.n_moves for plan in plans.values())
 
+        notes: list[str] = []
+        if params.use_svg_pieces and renderer.art.source != "svg":
+            notes.append(
+                "use_svg_pieces is set but python-chess/cairosvg are not installed; "
+                f"falling back to '{renderer.art.source}' art "
+                '(pip install -e ".[chess-svg]" for SVG pieces)'
+            )
+        # A clip is a whole number of held moves, so a short target can land
+        # well below its label. Say so rather than letting `duration_label`
+        # be taken at face value.
+        for label, plan in sorted(plans.items()):
+            actual = plan.actual_seconds(self.encode.fps)
+            if plan.target_seconds and abs(actual - plan.target_seconds) / plan.target_seconds > 0.1:
+                notes.append(
+                    f"clip '{label}' is {actual:.1f}s, not {plan.target_seconds:g}s "
+                    f"({plan.n_moves} whole moves fit); duration_sec records the truth"
+                )
+
         started = time.perf_counter()
         rows: list[Any] = []
         errors: list[tuple[str, str]] = []
@@ -257,6 +275,7 @@ class ChessGenerator(Generator):
             "pipe_reduction": f"{saved:.1%}",
             "piece_art": renderer.art.source,
             "moves_per_duration": {label: plan.n_moves for label, plan in plans.items()},
+            **({"notes": notes} if notes else {}),
         }
 
     # -- per-game work -----------------------------------------------------

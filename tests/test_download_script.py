@@ -134,3 +134,27 @@ def test_csv_that_is_not_how2sign_is_rejected(tmp_path: Path) -> None:
 
     assert result.returncode == 1
     assert "does not look like a How2Sign translation file" in result.stderr
+
+
+@requires_shell_tools
+@pytest.mark.parametrize("flag", ["--split", "--dest"])
+def test_flag_without_a_value_reports_an_error(tmp_path: Path, flag: str) -> None:
+    """A flag given with no value must say so.
+
+    `shift 2` on a one-token argument fails under `set -e`, which exited with
+    no output at all — indistinguishable from a crash.
+    """
+    stub_dir = tmp_path / "stubbin"
+    stub_dir.mkdir()
+    gdown = stub_dir / "gdown"
+    gdown.write_text("#!/bin/sh\nexit 99\n")
+    gdown.chmod(0o755)
+    env = dict(os.environ)
+    env["PATH"] = f"{stub_dir}{os.pathsep}{env.get('PATH', '')}"
+
+    result = subprocess.run(
+        ["bash", str(SCRIPT), flag],
+        capture_output=True, text=True, env=env,
+    )
+    assert result.returncode != 0
+    assert f"{flag} requires a value" in result.stderr

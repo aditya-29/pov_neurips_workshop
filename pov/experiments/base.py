@@ -46,7 +46,13 @@ class GenerationResult:
         if self.n_skipped:
             lines.append(f"  skipped (already present): {self.n_skipped}")
         for key, value in self.stats.items():
-            lines.append(f"  {key}: {value}")
+            if isinstance(value, list):
+                # Warnings and the like read better one per line than as a
+                # single wrapped repr of a list.
+                for item in value:
+                    lines.append(f"  {key[:-1] if key.endswith('s') else key}: {item}")
+            else:
+                lines.append(f"  {key}: {value}")
         if self.errors:
             lines.append(f"  ERRORS: {len(self.errors)}")
             for sample_id, message in self.errors[:10]:

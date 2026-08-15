@@ -102,6 +102,15 @@ def load_from_hub(dataset: str, split: str, subjects: list[str] | None) -> list[
     else:
         print(f"listing subjects in {dataset}…", flush=True)
         configs = [c for c in get_dataset_config_names(dataset) if c != "all"]
+        # --limit is applied *after* download, so a small limit still pulls
+        # every subject. Say so rather than letting it look like a hang.
+        print(
+            f"downloading all {len(configs)} MMLU subjects (a few minutes).\n"
+            "  --limit samples across them afterwards; it does not reduce the\n"
+            "  download. To fetch only some, pass e.g. "
+            "--subjects anatomy astronomy world_religions",
+            flush=True,
+        )
 
     records: list[dict] = []
     for index, subject in enumerate(configs, start=1):
