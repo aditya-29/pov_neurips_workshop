@@ -21,6 +21,9 @@ dependencies = [
 # Chess piece art rendered from python-chess SVGs. Without these the renderer
 # falls back to bundled glyph rendering — generation still works.
 chess-svg = ["chess>=1.10", "cairosvg>=2.7"]
+# Needed only by scripts/ to acquire source data: MMLU from the HuggingFace Hub
+# and How2Sign from Google Drive. Not needed to generate or evaluate.
+data = ["datasets>=2.14", "gdown>=5.0"]
 dev = ["pytest>=7.4", "pytest-cov>=4.1"]
 
 [project.scripts]
