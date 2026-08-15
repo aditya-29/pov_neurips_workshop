@@ -1,0 +1,38 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pov"
+version = "0.1.0"
+description = "POV benchmark: video-vs-image presentation of the same content across chess, ASL, and word-by-word MCQ."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+
+dependencies = [
+    "pyyaml>=6.0",
+    "numpy>=1.24",
+    "pillow>=10.0",
+    "tqdm>=4.65",
+]
+
+[project.optional-dependencies]
+# Chess piece art rendered from python-chess SVGs. Without these the renderer
+# falls back to bundled glyph rendering — generation still works.
+chess-svg = ["chess>=1.10", "cairosvg>=2.7"]
+dev = ["pytest>=7.4", "pytest-cov>=4.1"]
+
+[project.scripts]
+pov = "pov.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["pov*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+    "integration: writes real media; requires ffmpeg on PATH",
+    "slow: takes more than a couple of seconds",
+]
+filterwarnings = ["error::DeprecationWarning:pov.*"]
