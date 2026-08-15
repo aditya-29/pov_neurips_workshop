@@ -473,13 +473,17 @@ class _FrameCache:
         return self.record.moves[index - 1].board_after
 
     def _labels(self, move: MoveRecord) -> tuple[str, str]:
+        """Panel text for a half-move: the move number and nothing else.
+
+        The label deliberately does **not** name the piece, the squares, or the
+        algebraic notation. Printing "Move 8 - Black: Qd8" puts the answer on
+        screen in words, so a model could score well by reading the caption
+        without ever looking at the board — which is precisely what this
+        benchmark is trying to measure. The number is a temporal anchor only.
+        """
         if not self.show_labels:
             return "", ""
-        # ASCII only: the panel font is whatever the OS provides, and a missing
-        # arrow glyph renders as a tofu box in the middle of the label.
-        label = f"Move {move.move_no} - {move.color}: {move.notation}"
-        sublabel = f"{move.piece}  {move.src} -> {move.dst}"
-        return label, sublabel
+        return f"Move {move.move_no}", ""
 
     def _segments_for_move(self, index: int) -> list[tuple[np.ndarray, int]]:
         move = self.record.moves[index]
