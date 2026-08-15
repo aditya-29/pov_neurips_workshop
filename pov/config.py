@@ -410,14 +410,19 @@ class Config:
             "params": copy.deepcopy(self.params),
         }
 
+    #: Run fields that change where output lands or how fast it is produced,
+    #: never what it contains — so they must not affect the content hash.
+    NON_CONTENT_RUN_FIELDS = ("run_id", "output_root", "workers", "overwrite", "resume")
+
     def config_hash(self) -> str:
         """Stable hash of everything that affects output content.
 
-        `run_id`, `workers`, `overwrite` and `resume` are excluded: they change
-        where output lands or how fast it is produced, never what it contains.
+        Equal hashes mean two runs were generated from the same settings, so
+        writing the identical dataset to a second directory — or with a
+        different worker count — must not change it.
         """
         payload = self.to_dict()
-        for volatile in ("run_id", "workers", "overwrite", "resume"):
+        for volatile in self.NON_CONTENT_RUN_FIELDS:
             payload["run"].pop(volatile, None)
         canonical = json.dumps(payload, sort_keys=True, separators=(",", ":"), default=str)
         return hashlib.sha256(canonical.encode("utf-8")).hexdigest()[:12]

@@ -198,10 +198,29 @@ class TestConfig:
         assert a.config_hash() == b.config_hash()
         assert a.config_hash() != c.config_hash()
 
-    def test_hash_ignores_non_content_run_fields(self):
-        a = Config.from_mapping({"experiment": "chess", "run": {"workers": 1}})
-        b = Config.from_mapping({"experiment": "chess", "run": {"workers": 16}})
+    @pytest.mark.parametrize(
+        "left,right",
+        [
+            ({"workers": 1}, {"workers": 16}),
+            ({"output_root": "data"}, {"output_root": "/tmp/elsewhere"}),
+            ({"run_id": "a"}, {"run_id": "b"}),
+            # overwrite and resume are mutually exclusive, so vary them together.
+            ({"overwrite": True, "resume": False}, {"overwrite": False, "resume": True}),
+        ],
+    )
+    def test_hash_ignores_non_content_run_fields(self, left, right):
+        # Same dataset written to a different directory, or with a different
+        # worker count, is still the same dataset.
+        a = Config.from_mapping({"experiment": "chess", "run": left})
+        b = Config.from_mapping({"experiment": "chess", "run": right})
         assert a.config_hash() == b.config_hash()
+
+    def test_hash_covers_every_content_field(self):
+        # Guard against a new run field silently entering the hash.
+        base = Config.from_mapping({"experiment": "chess"})
+        payload = base.to_dict()["run"]
+        content_fields = set(payload) - set(Config.NON_CONTENT_RUN_FIELDS)
+        assert content_fields == {"seed"}
 
     def test_hash_tracks_seed(self):
         a = Config.from_mapping({"experiment": "chess", "run": {"seed": 1}})
