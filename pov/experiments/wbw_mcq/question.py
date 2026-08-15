@@ -187,7 +187,14 @@ def load_questions(path: str | Path, fmt: str = "auto") -> list[Question]:
     """Load questions from a .jsonl or MMLU .csv file."""
     path = Path(path)
     if not path.exists():
-        raise QuestionError(f"questions file not found: {path}")
+        raise QuestionError(
+            f"questions file not found: {path}\n"
+            "  Fetch real MMLU questions with:\n"
+            "      pip install datasets\n"
+            "      python scripts/fetch_mmlu.py --limit 200\n"
+            "  Or point params.questions_path at examples/questions.jsonl for a "
+            "5-question smoke test."
+        )
 
     if fmt == "auto":
         fmt = "mmlu_csv" if path.suffix.lower() == ".csv" else "jsonl"

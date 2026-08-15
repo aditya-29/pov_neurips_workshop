@@ -25,9 +25,11 @@ video:
   codec: libx264
 
 params:
-  # Point these at your How2Sign download.
-  metadata_csv: /path/to/how2sign_val.csv
-  video_dir: /path/to/raw_videos
+  # Defaults match what scripts/download_how2sign.sh produces. Run it first:
+  #   pip install gdown && ./scripts/download_how2sign.sh
+  # Already have How2Sign elsewhere? Point these at it instead.
+  metadata_csv: data/asl_source/how2sign_val.csv
+  video_dir: data/asl_source/val_raw_videos
 
   delimiter: auto         # How2Sign ships tab-separated; auto detects it
   id_column: SENTENCE_NAME

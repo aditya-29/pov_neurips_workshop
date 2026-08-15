@@ -51,6 +51,33 @@ Optional: `pip install -e ".[chess-svg]"` uses python-chess SVG piece art. Witho
 it the board falls back to Unicode chess glyphs, then to lettered discs — all
 three render at the same size, so nothing else changes.
 
+## 0. Get the source data
+
+`chess` is fully synthetic — it needs nothing. The other two read real corpora,
+which are **not** bundled (How2Sign is CC BY-NC and not redistributable):
+
+```bash
+pip install -e ".[data]"
+
+python scripts/fetch_mmlu.py --limit 200      # → data/questions.jsonl   (small)
+./scripts/download_how2sign.sh                # → data/asl_source/       (~1.7 GB)
+```
+
+| Experiment | Source | Acquired by | Lands in |
+|---|---|---|---|
+| `chess` | generated in-process | — | — |
+| `wbw_mcq` | [MMLU](https://huggingface.co/datasets/cais/mmlu) (`cais/mmlu`, MIT) | `scripts/fetch_mmlu.py` | `data/questions.jsonl` |
+| `asl` | [How2Sign](https://how2sign.github.io/) val, sentence-level RGB front clips + translation CSV (CC BY-NC 4.0, research use only) | `scripts/download_how2sign.sh` | `data/asl_source/` |
+
+`fetch_mmlu.py` samples evenly across MMLU subjects with a fixed seed, skips
+questions over `--max-words` (a 300-word stem makes an unwatchable video), and
+can convert a local MMLU CSV release offline with `--from-csv`.
+`download_how2sign.sh` takes `--split val|test|train` and `--dest`, resumes, and
+verifies what it downloaded is really How2Sign rather than a Drive error page.
+
+Both destinations are gitignored. `examples/questions.jsonl` holds 5 hand-written
+questions for a no-download smoke test — it is *not* real MMLU.
+
 ## 1. Generate
 
 ```bash

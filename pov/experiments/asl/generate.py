@@ -163,8 +163,12 @@ class AslGenerator(Generator):
         records = [rec for rec in records if rec["_path"].exists()]
         if not records:
             raise ConfigError(
-                f"params.video_dir: no videos from {params.metadata_csv} were found "
-                f"under {params.video_dir}"
+                f"params.video_dir: none of the {len(missing)} videos listed in "
+                f"{params.metadata_csv} were found under {params.video_dir}\n"
+                f"  Expected files like: {missing[0]['_path'].name}\n"
+                "  Download them with:  ./scripts/download_how2sign.sh\n"
+                "  (the sentence-level 'Green Screen RGB Clips', not the "
+                "full-length videos)"
             )
 
         probed_at = time.perf_counter()
@@ -224,7 +228,14 @@ class AslGenerator(Generator):
         params = self.params
         path = params.metadata_csv
         if not path.exists():
-            raise ConfigError(f"params.metadata_csv: file not found: {path}")
+            raise ConfigError(
+                f"params.metadata_csv: file not found: {path}\n"
+                "  Download the How2Sign source data with:\n"
+                "      pip install gdown\n"
+                "      ./scripts/download_how2sign.sh\n"
+                "  Or point params.metadata_csv / params.video_dir at an "
+                "existing How2Sign copy."
+            )
 
         with open(path, encoding="utf-8", newline="") as f:
             sample = f.read(8192)

@@ -28,10 +28,14 @@ video:
   codec: libx264
 
 params:
+  # Default matches what scripts/fetch_mmlu.py produces. Run it first:
+  #   pip install datasets && python scripts/fetch_mmlu.py --limit 200
+  # For a 5-question smoke test with no download, use examples/questions.jsonl.
+  #
   # .jsonl accepts {stem, options:{A..D}, answer:"B"} or the HuggingFace MMLU
   # shape {question, choices:[...], answer:1}. A .csv is read as the original
   # headerless MMLU release: question,A,B,C,D,answer
-  questions_path: examples/questions.jsonl
+  questions_path: data/questions.jsonl
   questions_format: auto        # auto | jsonl | mmlu_csv
 
   limit: null                   # cap the number of questions (null = all)
