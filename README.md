@@ -105,6 +105,27 @@ overwritten. Re-running with `resume: true` skips artifacts that already exist.
 
 ## 2. Predict
 
+The task prompts ship with pov, so everyone runs the same benchmark:
+
+```bash
+pov prompt --list                              # every prompt and its fields
+pov prompt chess                               # the chess transcription task
+pov prompt asl                                 # the ASL translation task
+pov prompt wbw_mcq --condition vanishing_slow  # the message for one condition
+```
+
+```python
+from pov import prompts
+
+prompts.get("asl")                                  # task instruction
+prompts.for_condition("wbw_mcq", row["condition"])  # condition-aware message
+prompts.render("asl", "judge",                      # LLM-judge rubric
+               ground_truth=..., model_output=...)
+```
+
+The ASL judge emits `{"strict": ..., "loose": ...}`, which `pov eval` aggregates
+if you put those values in `judge_strict` / `judge_loose` fields.
+
 Fill the `model_output` column — one row is one media file plus its ground truth.
 
 ```python
@@ -169,6 +190,7 @@ pov/
     wbw_mcq/      question.py · render.py · generate.py
     asl/          sampling.py · generate.py
   eval/           scoring (imports nothing from experiments, calls no model)
+  prompts/        task instructions, ported from the original study
   report/         single-file HTML
 configs/          one example config per experiment
 docs/manifest.md  every manifest column

@@ -32,6 +32,10 @@ pov = "pov.cli:main"
 [tool.setuptools.packages.find]
 include = ["pov*"]
 
+[tool.setuptools.package-data]
+# Prompt texts ship with the package; without this they are missing from a wheel.
+"pov.prompts" = ["data/*.txt"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 markers = [

@@ -347,6 +347,111 @@ class TestWbwGeneration:
 # ── ASL ───────────────────────────────────────────────────────────────────────
 
 
+class TestPromptsCoverEveryGeneratedCondition:
+    """Every `condition` a generator writes must map to a prompt.
+
+    This is the end-to-end guard against the prompts and the generators
+    drifting apart: it reads the conditions out of real manifests rather than
+    trusting a hand-maintained list.
+    """
+
+    def assert_covered(self, result, experiment: str) -> set[str]:
+        from pov import prompts
+
+        conditions = {row["condition"] for row in read_manifest(result.manifest_path)}
+        assert conditions, "run produced no conditions"
+        for condition in conditions:
+            message = prompts.for_condition(experiment, condition)
+            assert message.strip(), f"empty prompt for {experiment}/{condition}"
+        return conditions
+
+    def test_chess_conditions_are_covered(self, chess_config):
+        chess_config["params"]["durations"] = [
+            {"label": "3s", "seconds": 3},
+            {"label": "6s", "seconds": 6},
+        ]
+        conditions = self.assert_covered(run(chess_config), "chess")
+        assert conditions == {"video_3s", "video_6s"}
+
+    def test_every_wbw_condition_is_covered(self, wbw_config):
+        # All modes and speeds at once — static_image, vanishing_*, cumulative_*.
+        wbw_config["params"]["modes"] = ["vanishing", "cumulative"]
+        wbw_config["params"]["speeds"] = {"slow": 1.0, "fast": 5.0}
+        conditions = self.assert_covered(run(wbw_config), "wbw_mcq")
+        assert "static_image" in conditions
+        assert any(c.startswith("vanishing") for c in conditions)
+        assert any(c.startswith("cumulative") for c in conditions)
+
+    def test_custom_speed_names_are_covered(self, wbw_config):
+        # Speed names come from the user's config, so the mapping must not rely
+        # on the three shipped names.
+        wbw_config["params"]["speeds"] = {"glacial": 0.7, "blistering": 9.0}
+        conditions = self.assert_covered(run(wbw_config), "wbw_mcq")
+        assert "vanishing_glacial" in conditions or "cumulative_glacial" in conditions
+
+    def test_asl_conditions_are_covered(self, asl_corpus):
+        conditions = self.assert_covered(run(asl_corpus), "asl")
+        assert all(c.startswith("video") for c in conditions)
+
+
+class TestPromptDrivenWorkflow:
+    """The documented loop: generate, prompt, predict, eval."""
+
+    def test_prompt_to_score_round_trip(self, wbw_config):
+        from pov import prompts
+        from pov.eval.mcq import parse_answer
+
+        result = run(wbw_config)
+        rows = read_manifest(result.manifest_path)
+
+        system = prompts.get("wbw_mcq", "task")
+        assert "ANSWER:" in system
+
+        # Stand in for the model: obey the format the prompt demands.
+        for row in rows:
+            prompts.for_condition("wbw_mcq", row["condition"])  # must not raise
+            reply = f"ANSWER: {row['ground_truth']}\nREASONING: read it."
+            assert parse_answer(reply) == row["ground_truth"]
+
+        preds = fill_predictions(
+            result.manifest_path,
+            lambda row, d: f"ANSWER: {row['ground_truth']}\nREASONING: read it.",
+        )
+        report = evaluate(preds, write=False)
+        assert report.overall()[f"{SCORE_PREFIX}correct"] == 1.0
+
+    def test_asl_judge_prompt_renders_for_every_row(self, asl_corpus):
+        from pov import prompts
+
+        result = run(asl_corpus)
+        for row in read_manifest(result.manifest_path):
+            rendered = prompts.render(
+                "asl", "judge",
+                ground_truth=row["ground_truth"],
+                model_output="a plausible translation",
+            )
+            assert row["ground_truth"] in rendered
+            assert "{ground_truth}" not in rendered
+
+    def test_chess_prompt_output_format_scores_correctly(self, chess_config):
+        from pov import prompts
+        from pov.eval.chess import parse_transcript
+
+        result = run(chess_config)
+        assert prompts.get("chess")  # the instruction exists
+
+        def perfect(row, run_dir):
+            moves = parse_transcript(load_ground_truth(row, run_dir))
+            # Exactly the format the chess prompt demands.
+            return "\n".join(
+                f"Move {m['move_num']}: {m['color']} Pawn {m['from']}{m['to']}"
+                for m in moves
+            )
+
+        report = evaluate(fill_predictions(result.manifest_path, perfect), write=False)
+        assert report.overall()[f"{SCORE_PREFIX}strict"] == 1.0
+
+
 @pytest.fixture
 def asl_corpus(tmp_path: Path) -> dict:
     """A synthetic How2Sign-shaped corpus with real (tiny) videos."""

@@ -250,6 +250,54 @@ class TestReportCommand:
         assert "<title>My Title</title>" in target.read_text()
 
 
+class TestPromptCommand:
+    def test_prints_a_task_prompt(self, capsys):
+        assert main(["prompt", "asl"]) == 0
+        out = capsys.readouterr().out
+        assert "American Sign Language" in out
+        assert len(out) > 1000
+
+    def test_kind_selects_the_judge(self, capsys):
+        assert main(["prompt", "asl", "--kind", "judge"]) == 0
+        assert "evaluator" in capsys.readouterr().out.lower()
+
+    def test_list_shows_every_prompt_and_its_fields(self, capsys):
+        assert main(["prompt", "--list"]) == 0
+        out = capsys.readouterr().out
+        for experiment in ("asl", "chess", "wbw_mcq"):
+            assert experiment in out
+        assert "ground_truth, model_output" in out
+
+    def test_condition_picks_the_matching_message(self, capsys):
+        assert main(["prompt", "wbw_mcq", "--condition", "static_image"]) == 0
+        assert "shown in the image" in capsys.readouterr().out
+
+    def test_condition_and_kind_together_are_refused(self, capsys):
+        assert main(["prompt", "wbw_mcq", "--condition", "static_image",
+                     "--kind", "task"]) == 2
+        assert "not both" in capsys.readouterr().err
+
+    def test_experiment_is_required_without_list(self, capsys):
+        assert main(["prompt"]) == 2
+        assert "--list" in capsys.readouterr().err
+
+    def test_unknown_experiment_exits_two_with_alternatives(self, capsys):
+        assert main(["prompt", "mystery"]) == 2
+        err = capsys.readouterr().err
+        assert "Available" in err
+        assert "PromptError" not in err  # printed as plain input error
+
+    def test_unknown_kind_exits_two(self, capsys):
+        assert main(["prompt", "chess", "--kind", "nope"]) == 2
+        assert "Available kinds" in capsys.readouterr().err
+
+    def test_output_is_pipeable(self, capsys):
+        # Nothing but the prompt on stdout, so `pov prompt asl > p.txt` works.
+        main(["prompt", "chess"])
+        out = capsys.readouterr().out
+        assert out.startswith("You are a chess move transcription assistant")
+
+
 class TestParser:
     def test_requires_a_command(self):
         with pytest.raises(SystemExit):

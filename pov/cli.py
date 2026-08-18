@@ -100,6 +100,29 @@ def build_parser() -> argparse.ArgumentParser:
     )
     validate.set_defaults(func=_cmd_validate)
 
+    # -- prompt ------------------------------------------------------------
+    prompt = subparsers.add_parser(
+        "prompt", help="print the task prompt for an experiment"
+    )
+    prompt.add_argument(
+        "experiment", nargs="?", default=None,
+        help="chess | asl | wbw_mcq (omit with --list)",
+    )
+    prompt.add_argument(
+        "-k", "--kind", default=None,
+        help="prompt kind (default: task; asl also has 'judge')",
+    )
+    prompt.add_argument(
+        "--condition", default=None,
+        help="pick the user message matching a manifest condition, "
+             "e.g. static_image or vanishing_slow",
+    )
+    prompt.add_argument(
+        "--list", action="store_true", dest="list_prompts",
+        help="list every available experiment and kind",
+    )
+    prompt.set_defaults(func=_cmd_prompt)
+
     # -- experiments -------------------------------------------------------
     listing = subparsers.add_parser("experiments", help="list available experiments")
     listing.set_defaults(func=_cmd_experiments)
@@ -209,6 +232,31 @@ def _cmd_validate(args: argparse.Namespace) -> int:
     config = _load_config(args)
     build_generator(config)  # parses params, raising on anything invalid
     print(f"{args.config}: OK ({config.experiment}, config hash {config.config_hash()})")
+    return 0
+
+
+def _cmd_prompt(args: argparse.Namespace) -> int:
+    from pov import prompts
+
+    if args.list_prompts:
+        for experiment, kind in prompts.available():
+            holes = prompts.placeholders(experiment, kind)
+            suffix = f"  (fields: {', '.join(holes)})" if holes else ""
+            print(f"{experiment:8s} {kind}{suffix}")
+        return 0
+
+    if not args.experiment:
+        print("error: give an experiment, or --list", file=sys.stderr)
+        return 2
+
+    if args.condition:
+        if args.kind:
+            print("error: use --kind or --condition, not both", file=sys.stderr)
+            return 2
+        print(prompts.for_condition(args.experiment, args.condition))
+        return 0
+
+    print(prompts.get(args.experiment, args.kind or prompts.DEFAULT_KIND))
     return 0
 
 
