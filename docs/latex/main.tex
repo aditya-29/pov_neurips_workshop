@@ -1,0 +1,115 @@
+\documentclass{article}
+
+% NOTE ON THE STYLE FILE
+% The bundled neurips_2026.sty is the legacy NIPS style (header: "NIPS Macros
+% (LaTex) ... Dec 12, 1990; Rev Aug 14, 1991; Sept, 1995; April, 1997; April,
+% 1999"). It declares no package options, so [preprint]/[final] are silently
+% unused ("LaTeX Warning: Unused global option(s)"). Anonymity is switched with
+% the \nipsfinalcopy command instead -- see below.
+%
+% If you replace this with the real NeurIPS 2026 kit, restore the option form:
+%     \usepackage[preprint]{neurips_2026}
+% and delete the \nipsfinalcopy line.
+\usepackage{neurips_2026}
+\usepackage{times}          % the style file's own header expects Times
+
+% Uncomment for a NON-ANONYMOUS build (preprint / camera-ready).
+% Leave commented for anonymous submission. Without it the title block prints
+% "Anonymous Author(s) / Affiliation / Address / email" and draws line-number
+% rulers in the margin, regardless of what \author{} says.
+% \nipsfinalcopy
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{hyperref}
+\usepackage{url}
+\usepackage{booktabs}
+\usepackage{amsfonts}
+\usepackage{nicefrac}
+\usepackage{microtype}
+\usepackage{xcolor}
+
+\title{From REVEAL to TRACE --- Attributing Fragile Temporal\\ Grounding in
+Video-Language Models}
+
+% In this style, \And puts the next author on the same line and \AND starts a
+% new line. The author block only renders when \nipsfinalcopy is enabled;
+% otherwise the title page shows "Anonymous Author(s)".
+% TODO: fill in affiliations and emails before a non-anonymous build.
+% No trailing \\ immediately before \And / \AND: those macros expand to
+% \end{tabular}, and a \\ just before it leaves a stray empty row.
+\author{%
+  Aditya Shanmugham
+  \And
+  Sethuraman T V
+  \And
+  Srinidhi Sunkara
+  \AND
+  Abbaas Alif Mohamed Nishar
+  \And
+  Derek Hoiem
+}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+REVEAL showed that video-language models under-use the visual evidence in front
+of them. We ask why, and find they are not so much failing to see as declining to
+look twice: they seek a shortcut, locating a single frame that makes the question
+answerable and answering from that frame alone. When a benchmark forecloses that
+shortcut, accuracy collapses --- for frontier proprietary and open-weight models
+alike.
+
+Two failure modes hide behind one score. Evidence may never be \emph{delivered}
+to the model, discarded by frame sampling and context budgets before inference
+begins; or it may be delivered and never \emph{integrated} across frames.
+Reported as a single number the two are indistinguishable, and the second is
+invisible.
+
+TRACE separates them by construction, by controlling the schedule on which
+content is revealed. The same semantic content is re-rendered under presentation
+conditions differing \emph{only} in how that content is distributed over time. In
+our word-by-word task, one condition presents an entire multiple-choice question
+as a single image; a second accumulates words, so the final frame still holds the
+whole question; a third shows one word per frame, so no single frame is ever
+sufficient. Comparable accuracy on the first two and collapse on the third is
+direct evidence of shortcut-seeking rather than temporal reading. Sweeping reveal
+rate and clip duration --- over synthetic chess games (5\,s--10\,min), continuous
+ASL translation, and MMLU --- yields regimes in which every token is provably
+sampled and the clip fits comfortably in context, isolating cross-frame
+integration, not perception or context length, as the binding constraint.
+
+TRACE ships as a reproducible generator: configs, media, per-item ground truth,
+and scoring.
+\end{abstract}
+
+\section{Introduction}
+
+% Suggested structure, mirroring the abstract. Delete or reorder freely.
+%
+% \section{Related Work}
+%   Video-language benchmarks; shortcut learning; temporal grounding; REVEAL.
+%
+% \section{Two Failure Modes}
+%   Delivery (frame sampling, context budget) vs. integration (cross-frame
+%   binding). Why a single accuracy number cannot distinguish them.
+%
+% \section{TRACE}
+%   \subsection{Controlling the Reveal Schedule}
+%   \subsection{Word-by-Word MCQ}
+%     static image / cumulative (last frame is sufficient) / vanishing (no frame
+%     is sufficient).
+%   \subsection{Chess}   Same game at 5\,s--10\,min; one frame per half-move.
+%   \subsection{ASL}     How2Sign, duration buckets <3\,s--<30\,s.
+%
+% \section{Experiments}
+%   Models; sampling rates; the regime where delivery is provably not the cause.
+%
+% \section{Results}
+%   Cumulative-vs-vanishing gap; failures attributable to unsampled frames.
+%
+% \section{Discussion and Limitations}
+
+\end{document}
