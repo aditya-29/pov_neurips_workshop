@@ -24,10 +24,22 @@ import ast
 import os
 import subprocess
 import sys
-import tomllib
 from pathlib import Path
 
 import pytest
+
+try:  # 3.11+
+    import tomllib
+except ModuleNotFoundError:  # 3.10 — provided by the `dev` extra
+    try:
+        import tomli as tomllib
+    except ModuleNotFoundError:  # pragma: no cover - degrade, never break collection
+        tomllib = None
+
+needs_toml = pytest.mark.skipif(
+    tomllib is None,
+    reason="no TOML reader: pip install tomli (Python 3.10 only)",
+)
 
 REPO = Path(__file__).resolve().parent.parent
 PACKAGE = REPO / "pov"
@@ -105,6 +117,7 @@ class TestEverythingRuntimeIsTracked:
         ]
         assert not missing, f"prompts missing from the repo: {missing}"
 
+    @needs_toml
     def test_package_data_globs_resolve(self, tracked):
         """Every pyproject package-data pattern must match tracked files.
 
@@ -238,6 +251,8 @@ class TestDeclaredDependencies:
     @pytest.fixture(scope="class")
     @classmethod
     def declared(cls) -> dict[str, set[str]]:
+        if tomllib is None:  # pragma: no cover
+            pytest.skip("no TOML reader: pip install tomli (Python 3.10 only)")
         config = tomllib.loads((REPO / "pyproject.toml").read_text())
         project = config["project"]
 

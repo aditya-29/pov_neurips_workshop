@@ -15,9 +15,9 @@ jobs:
       matrix:
         python-version: ["3.10", "3.11", "3.12", "3.13"]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: ${{ matrix.python-version }}
 
@@ -27,8 +27,15 @@ jobs:
       - name: Install
         run: pip install -e ".[dev,chess-svg]"
 
-      - name: Run the suite
+      # Both invocation styles. `python -m pytest` prepends the cwd to sys.path
+      # and bare `pytest` does not, which is exactly how the missing
+      # `pythonpath` setting stayed hidden locally. The README documents the
+      # bare form, so that one runs first.
+      - name: Run the suite (bare pytest, as the README documents)
         run: pytest -q
+
+      - name: Run the suite (python -m pytest)
+        run: python -m pytest -q
 
   # The job that would have caught the missing prompts: install from a built
   # wheel, in a directory that is not the source tree, with only the declared
@@ -37,9 +44,9 @@ jobs:
   clean-install:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.11"
 

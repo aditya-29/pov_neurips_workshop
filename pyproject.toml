@@ -24,7 +24,7 @@ chess-svg = ["chess>=1.10", "cairosvg>=2.7"]
 # Needed only by scripts/ to acquire source data: MMLU from the HuggingFace Hub
 # and How2Sign from Google Drive. Not needed to generate or evaluate.
 data = ["datasets>=2.14", "gdown>=5.0"]
-dev = ["pytest>=7.4", "pytest-cov>=4.1"]
+dev = ["pytest>=7.4", "pytest-cov>=4.1", "tomli>=2.0; python_version<'3.11'"]
 
 [project.scripts]
 pov = "pov.cli:main"
@@ -38,6 +38,10 @@ include = ["pov*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+# Several test modules do `from tests.conftest import ...`, which needs the repo
+# root importable. `python -m pytest` prepends the cwd and hides this; the bare
+# `pytest` the README documents does not. Set it explicitly so both work.
+pythonpath = ["."]
 markers = [
     "integration: writes real media; requires ffmpeg on PATH",
     "slow: takes more than a couple of seconds",
