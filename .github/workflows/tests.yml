@@ -1,0 +1,99 @@
+name: tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  # The normal suite, on every supported interpreter.
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.11", "3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install ffmpeg
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg
+
+      - name: Install
+        run: pip install -e ".[dev,chess-svg]"
+
+      - name: Run the suite
+        run: pytest -q
+
+  # The job that would have caught the missing prompts: install from a built
+  # wheel, in a directory that is not the source tree, with only the declared
+  # runtime dependencies. If package data is missing, this fails and the
+  # matrix above does not.
+  clean-install:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install ffmpeg
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg
+
+      - name: Build a wheel and install it alone
+        run: |
+          pip install build
+          python -m build --wheel
+          pip install dist/*.whl
+
+      - name: Import from site-packages, not the checkout
+        working-directory: /tmp
+        run: |
+          python - <<'PY'
+          import pov, pov.prompts as prompts
+          assert "site-packages" in pov.__file__, pov.__file__
+          pairs = prompts.available()
+          assert len(pairs) == 8, f"wheel ships {len(pairs)} prompts, expected 8"
+          for experiment, kind in pairs:
+              assert prompts.get(experiment, kind).strip(), f"{experiment}/{kind} empty"
+          print(f"ok - {len(pairs)} prompts present in the installed wheel")
+          PY
+
+      - name: Generate, evaluate and report end to end
+        run: |
+          pov generate -c configs/chess.yaml \
+            --set params.num_games=1 \
+            --set 'params.durations=[{"label":"5s","seconds":5}]' \
+            --set run.output_root=ci-out
+          pov generate -c configs/wbw_mcq.yaml \
+            --set params.questions_path=examples/questions.jsonl \
+            --set run.output_root=ci-out
+          python - <<'PY'
+          import glob, json
+          path = sorted(glob.glob("ci-out/wbw_mcq/*/manifest.jsonl"))[-1]
+          rows = [json.loads(line) for line in open(path) if line.strip()]
+          for row in rows:
+              row["model_output"] = "ANSWER: A"
+          with open("ci-scored.jsonl", "w") as handle:
+              for row in rows:
+                  handle.write(json.dumps(row) + "\n")
+          print(f"prepared {len(rows)} rows")
+          PY
+          pov eval -i ci-scored.jsonl -o ci-eval
+          pov report -i ci-eval/scored.jsonl -o ci-report.html
+          test -s ci-report.html
+
+      - name: ASL must fail cleanly when How2Sign is absent
+        run: |
+          set +e
+          pov generate -c configs/asl.yaml --set run.output_root=ci-out
+          code=$?
+          set -e
+          test "$code" -eq 2 || { echo "expected exit 2 (user error), got $code"; exit 1; }
+          test ! -d ci-out/asl || { echo "a failed run left a directory behind"; exit 1; }

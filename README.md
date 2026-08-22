@@ -643,6 +643,7 @@ pov/
   report/         single-file HTML
 configs/          one config per experiment
 scripts/          fetch_mmlu.py · download_how2sign.sh
+.github/          CI: full matrix + a clean-wheel-install job
 docs/manifest.md  the manifest schema in depth
 examples/         questions.jsonl (5 demo questions, NOT real MMLU)
 tests/            748 tests
@@ -663,6 +664,21 @@ Video generation was the original bottleneck; three changes removed most of it:
 
 Measured: chess renders 63 frames to encode 3,861 (−88 % pipe writes); word-by-word
 MCQ renders 94 to encode 8,004 (−75 %).
+
+## Continuous integration
+
+`.github/workflows/tests.yml` runs the suite on Python 3.10–3.13, and a separate
+`clean-install` job builds a wheel, installs it *outside* the source tree with
+only the declared runtime dependencies, and runs generate → eval → report. That
+second job is the one that catches packaging mistakes: a prompt missing from the
+wheel fails there while the normal matrix stays green.
+
+## Licence
+
+The code is MIT — see `LICENSE`. **That does not cover the datasets.** How2Sign
+is CC BY-NC 4.0 (research use only, non-commercial, not redistributable) and
+MMLU carries its own upstream terms; generated media inherits them. Do not
+commit or republish clips derived from either.
 
 ## Contributing
 
