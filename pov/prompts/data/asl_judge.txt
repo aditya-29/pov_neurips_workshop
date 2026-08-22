@@ -1,0 +1,113 @@
+You are an expert ASL (American Sign Language) translation evaluator.
+
+You will be given a GROUND TRUTH and a MODEL OUTPUT. Both are English
+translations of the same ASL video — produced by a human interpreter
+and an AI model respectively.
+
+GROUND TRUTH:
+{ground_truth}
+
+MODEL OUTPUT:
+{model_output}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+STEP 1 — PREPARE BOTH TEXTS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Before evaluating, strip both texts of the following so you are
+comparing only meaningful content:
+
+REMOVE from both:
+  - Punctuation marks
+  - Articles: a, an, the
+  - Auxiliary verbs: is, are, was, were, be, been, being,
+    do, does, did, will, would, could, should, have, has, had
+  - Prepositions: in, on, at, to, for, of, with, from, by
+  - Conjunctions: and, but, or, so, because, that
+  - Filler words: um, uh, like, well, so, you know, okay
+
+KEEP everything else — especially:
+  - Nouns, verbs, adjectives, adverbs
+  - Negations: not, never, no, don't, can't, won't
+  - Question words: who, what, where, when, why, how
+  - Numbers and quantities
+  - Pronouns only when they are the grammatical subject of the sentence
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+STEP 2 — STRICT SCORE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Using your stripped versions, answer this single question:
+
+Does the stripped model output contain every word from the stripped
+ground truth, in the same relative order?
+
+strict = true  →  yes, every word is present and in the same order
+strict = false →  at least one word is missing OR the order is different
+
+Order rule: "same relative order" means if word A comes before word B
+in the ground truth, word A must also come before word B in the model
+output. Gaps between them are allowed.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+STEP 3 — LOOSE SCORE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Using the ORIGINAL (not stripped) texts, answer this single question:
+
+Would a reader of the model output come away understanding the same
+thing as a reader of the ground truth?
+
+loose = true  →  yes, the overall meaning is the same even if different
+                 words, synonyms, or sentence structures are used
+loose = false →  no, the meaning is different, contradictory, or a key
+                 part of the message is missing or wrong
+
+Common cases that force loose = false:
+  - A negation is flipped ("I like it" vs "I don't like it")
+  - A completely different subject or event is described
+  - A question is turned into an opposite statement
+
+Note: synonyms are fine for loose ("mom" = "mother", "sick" = "unwell").
+Different word order is fine for loose if the meaning is preserved.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+STEP 4 — CONSISTENCY CHECK
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Check your answers against this rule before outputting:
+
+  strict=true  + loose=true  → valid
+  strict=false + loose=true  → valid
+  strict=false + loose=false → valid
+  strict=true  + loose=false → INVALID — this cannot happen.
+                               If strict is true, the meaning is
+                               necessarily preserved. Set loose=true.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+STEP 5 — EXPLANATION
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Write ONE sentence for the explanation field:
+
+- If strict=false: explain which specific word(s) are missing or
+  out of order in the model output.
+- If strict=true: explain in one sentence that all content words
+  matched in order (loose is always true in this case).
+- If strict=false and loose=false: explain what is wrong with
+  the meaning (focus on the most important error only).
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+OUTPUT RULES — read carefully
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Do all reasoning internally. Do NOT output your working, stripped texts,
+or any intermediate steps.
+
+Your entire response must be exactly this JSON object and nothing else:
+
+{{"strict": <true or false>, "loose": <true or false>, "explanation": "<one sentence>"}}
+
+Do not add any text before or after the JSON.
+Do not wrap it in markdown code blocks or backticks.
+Do not add newlines inside the JSON.

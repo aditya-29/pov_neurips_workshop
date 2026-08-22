@@ -10,6 +10,7 @@ renderer really produces.
 from __future__ import annotations
 
 import json
+import os
 import re
 from pathlib import Path
 
@@ -19,12 +20,22 @@ from pov import prompts
 from pov.errors import PovError
 from pov.prompts import PromptError
 
-#: The original study, used for fidelity checks when it is present.
-REFERENCE = Path(
-    "/Users/aditya/Programming/sethu_research/pov-stuff/icml_workshop"
-)
+#: Optional provenance check against the original study.
+#
+# The prompts are *vendored* into pov/prompts/data/ — this repo does not depend
+# on the original icml_workshop checkout, and every test outside
+# TestPortedVerbatim runs without it. Point POV_REFERENCE_REPO at a copy of that
+# repo to additionally verify the vendored copies are still byte-identical:
+#
+#     POV_REFERENCE_REPO=/path/to/icml_workshop pytest tests/test_prompts.py
+#
+# Unset (the normal case, including CI), those checks skip.
+_REFERENCE_ENV = "POV_REFERENCE_REPO"
+_reference_root = os.environ.get(_REFERENCE_ENV, "")
+REFERENCE = Path(_reference_root) if _reference_root else None
 requires_reference = pytest.mark.skipif(
-    not REFERENCE.is_dir(), reason="original icml_workshop repo not available"
+    REFERENCE is None or not REFERENCE.is_dir(),
+    reason=f"set {_REFERENCE_ENV} to the original icml_workshop checkout to run",
 )
 
 

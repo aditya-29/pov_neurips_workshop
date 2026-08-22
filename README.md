@@ -595,7 +595,7 @@ That is the complete surface. There is no `pov run`, no `pov predict`, no
 # 11. Tests
 
 ```bash
-pytest                  # 727 tests, ~11 s
+pytest                  # 748 tests, ~11 s
 pytest -m integration   # only those writing real media
 pytest -m "not slow"    # skip perft(4)
 ```
@@ -605,6 +605,20 @@ metrics, prompts) has no heavy dependencies and runs offline. Tests that encode
 real MP4s are marked `integration` and skip automatically without ffmpeg. Chess
 move generation is pinned by `perft(1..4)` against the published node counts
 (20 / 400 / 8,902 / 197,281).
+
+**A clean clone must pass everything.** `tests/test_selfcontained.py` enforces
+it: every file under `pov/` is tracked by git, no ignore rule hides one, no
+source hardcodes a path outside the repo, and nothing imports a package that
+`pyproject.toml` does not declare. This repo has no dependency on any other
+checkout.
+
+Four tests skip by default — they compare the vendored prompts byte-for-byte
+against the original study, which is not part of this repo. To run them, point
+at a copy of it:
+
+```bash
+POV_REFERENCE_REPO=/path/to/icml_workshop pytest tests/test_prompts.py
+```
 
 ---
 
@@ -631,7 +645,7 @@ configs/          one config per experiment
 scripts/          fetch_mmlu.py · download_how2sign.sh
 docs/manifest.md  the manifest schema in depth
 examples/         questions.jsonl (5 demo questions, NOT real MMLU)
-tests/            727 tests
+tests/            748 tests
 ```
 
 ## Speed

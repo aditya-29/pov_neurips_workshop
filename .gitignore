@@ -1,7 +1,9 @@
-# Generated benchmark data — never commit
-data/
-runs/
-outputs/
+# Generated benchmark data — never commit.
+# Leading slash matters: a bare `data/` also matches pov/prompts/data/, which
+# silently kept every task prompt out of the repo. Anchor to the root.
+/data/
+/runs/
+/outputs/
 
 # Media artifacts
 *.mp4
@@ -12,6 +14,9 @@ outputs/
 *.jpeg
 *.png
 !docs/**/*.png
+!docs/**/*.jpg
+!docs/**/*.jpeg
+!docs/**/*.gif
 
 # Python
 __pycache__/
@@ -38,6 +43,9 @@ htmlcov/
 
 # Notebooks
 .ipynb_checkpoints/
+
+# Editor local-history extensions
+.history/
 
 # OS
 .DS_Store
