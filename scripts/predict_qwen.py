@@ -51,8 +51,17 @@ DEFAULT_SAMPLING = {"fps": 2.0, "max_frames": 96, "min_frames": 4}
 # fixed 512 caps `moves_predicted` at ~43 and makes every clip over ~2 min score
 # the same — conflating "could not see the moves" with "was cut off mid-sentence".
 # A 10 min clip holds ~495 half-moves at ~12 tokens per line, hence ~6k.
-MAX_NEW_TOKENS = {"chess": 8192, "asl": 512, "wbw_mcq": 256}
+# wbw_mcq is MMLU: the model reasons through the question before answering, and
+# a hard stem (e.g. the minimal polynomial of sqrt 6) runs past 256 tokens, so it
+# is cut off before emitting "ANSWER: X". That scores as `answered=0` -- a refusal
+# the model never made. Budget for the reasoning, not just the letter.
+MAX_NEW_TOKENS = {"chess": 8192, "asl": 512, "wbw_mcq": 1024}
 DEFAULT_MAX_NEW_TOKENS = 512
+
+
+def repetition_penalty_for(experiment: str, args) -> float:
+    """The flag is the only source: repetition handling stays opt-in per run."""
+    return args.repetition_penalty
 
 
 def max_new_tokens_for(experiment: str, args) -> int:
@@ -107,6 +116,14 @@ def parse_args(argv=None):
     p.add_argument("--max-new-tokens", type=int, default=None,
                    help="override the per-experiment output budget "
                         "(see MAX_NEW_TOKENS)")
+    p.add_argument("--repetition-penalty", type=float, default=1.0,
+                   help="1.0 = plain greedy (default). Greedy decoding collapses "
+                        "into repetition on ~half of ASL clips: the model loops "
+                        "inside GLOSS, exhausts the token budget, and never emits "
+                        "TRANSLATION, so the row scores as garbage for reasons "
+                        "that have nothing to do with signing. ~1.05-1.1 "
+                        "suppresses that. Changing it changes comparability, so "
+                        "it is opt-in and recorded per row")
     p.add_argument("--resume", action="store_true",
                    help="skip sample_ids already present in the output")
     p.add_argument("--dry-run", action="store_true",
@@ -114,7 +131,7 @@ def parse_args(argv=None):
     return p.parse_args(argv)
 
 
-def extract_translation(text: str) -> str:
+def extract_translation(text: str) -> tuple[str, bool]:
     """Pull the TRANSLATION section out of an ASL response.
 
     `asl_task.txt` asks for GLOSS / TRANSLATION / CONFIDENCE, but `AslScorer`
@@ -126,21 +143,24 @@ def extract_translation(text: str) -> str:
 
     Falls back to the full text when no TRANSLATION label is present — a model
     that ignored the format is better scored on what it did say than on "".
+
+    Returns (hypothesis, matched). `matched` is False for the fallback, so the
+    caller can tell a real extraction from a reply that never had the section.
     """
     if not text:
-        return text
+        return text, False
     # Tolerate **TRANSLATION:**, "TRANSLATION -", leading bullets, any case.
     m = re.search(r"^[^\w]*\**\s*TRANSLATION\s*\**\s*[:\-]\s*", text,
                   re.IGNORECASE | re.MULTILINE)
     if not m:
-        return text.strip()
+        return text.strip(), False
     body = text[m.end():]
     # Stop at the next section header (CONFIDENCE, GLOSS, NOTES, ...).
     stop = re.search(r"^[^\w]*\**\s*(CONFIDENCE|GLOSS|NOTES?|EXPLANATION)\b",
                      body, re.IGNORECASE | re.MULTILINE)
     if stop:
         body = body[:stop.start()]
-    return body.strip().strip("*").strip() or text.strip()
+    return (body.strip().strip("*").strip() or text.strip()), True
 
 
 def load_manifest(path: Path) -> list[dict]:
@@ -271,7 +291,8 @@ class Runner:
             print("[load] enable_thinking unsupported; leaving default", flush=True)
         print(f"[load] done in {time.time() - t0:.0f}s", flush=True)
 
-    def ask(self, system, content, max_new_tokens: int) -> str:
+    def ask(self, system, content, max_new_tokens: int,
+            repetition_penalty: float = 1.0) -> str:
         import torch
         from qwen_vl_utils import process_vision_info
 
@@ -299,8 +320,10 @@ class Runner:
                                 padding=True, return_tensors="pt",
                                 **video_kwargs).to("cuda")
         with torch.inference_mode():
-            out = self.model.generate(**inputs, max_new_tokens=max_new_tokens,
-                                      do_sample=False)
+            gen = {"max_new_tokens": max_new_tokens, "do_sample": False}
+            if repetition_penalty and repetition_penalty != 1.0:
+                gen["repetition_penalty"] = repetition_penalty
+            out = self.model.generate(**inputs, **gen)
         trimmed = out[0][inputs.input_ids.shape[1]:]
         return self.processor.decode(trimmed, skip_special_tokens=True).strip()
 
@@ -351,7 +374,8 @@ def main(argv=None) -> int:
         s = sampling_for(exp, args)
         print(f"sampling   : {exp:8} fps={s['fps']} max_frames={s['max_frames']} "
               f"min_frames={s['min_frames']} max_pixels={args.max_pixels} "
-              f"max_new_tokens={max_new_tokens_for(exp, args)}")
+              f"max_new_tokens={max_new_tokens_for(exp, args)} "
+              f"rep_penalty={repetition_penalty_for(exp, args)}")
     for c in sorted(by_cond):
         print(f"  {c:24} {by_cond[c]}")
 
@@ -372,11 +396,13 @@ def main(argv=None) -> int:
             media_path = run_dir / row["media_path"]
             samp = sampling_for(row["experiment"], args)
             mnt = max_new_tokens_for(row["experiment"], args)
+            rpen = repetition_penalty_for(row["experiment"], args)
             system, content = build_messages(row, media_path, args, samp)
             assert not any(f in json.dumps(content) for f in
                            (row.get("ground_truth") or "\x00",)), "ground truth leaked"
             try:
-                answer = runner.ask(system, content, mnt)
+                answer = runner.ask(system, content, mnt,
+                                    args.repetition_penalty)
                 err = ""
                 ok += 1
             except Exception as exc:  # one bad clip must not kill the run
@@ -389,8 +415,9 @@ def main(argv=None) -> int:
             # ASL is scored verbatim against a plain English sentence, so the
             # hypothesis must be the TRANSLATION body, not the whole reply.
             if row["experiment"] == "asl" and answer:
-                hypothesis = extract_translation(answer)
-                if hypothesis != answer:
+                hypothesis, matched = extract_translation(answer)
+                out_row["translation_section_found"] = matched
+                if matched:
                     out_row["model_output_raw"] = answer
                 answer = hypothesis
             out_row["model_output"] = answer
@@ -403,6 +430,8 @@ def main(argv=None) -> int:
                 "sample_min_frames": samp["min_frames"],
                 "sample_max_pixels": args.max_pixels,
                 "sample_max_new_tokens": mnt,
+                "sample_repetition_penalty": rpen,
+                "sample_repetition_penalty": args.repetition_penalty,
             })
             if err:
                 out_row["predict_error"] = err
