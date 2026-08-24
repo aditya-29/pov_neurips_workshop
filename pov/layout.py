@@ -120,17 +120,41 @@ class RunLayout:
         return self.ground_truth_dir / filename
 
     def relpath(self, path: str | Path) -> str:
-        """Path relative to the run directory, in posix form for the manifest."""
+        """Path relative to the run directory, in posix form for the manifest.
+
+        Accepts three shapes, because callers produce all of them:
+
+        * an absolute path;
+        * a path relative to the *current directory* — which is what
+          :meth:`media_file` returns whenever ``output_root`` is itself
+          relative, as it is in every shipped config (``output_root: data``);
+        * a path already relative to the run directory.
+
+        The middle case is the reason this cannot simply pass relative paths
+        through: ``data/chess/<run_id>/media/x.mp4`` is relative, but relative
+        to the wrong base, and recording it verbatim breaks the manifest
+        contract that ``<run_dir>/<media_path>`` resolves.
+        """
         path = Path(path)
-        if not path.is_absolute():
-            # Already relative — normalise separators and return as-is.
-            return path.as_posix()
+        run_dir = self.run_dir.resolve()
+
+        # Absolute, or relative to the cwd, and landing inside the run dir.
         try:
-            return path.resolve().relative_to(self.run_dir.resolve()).as_posix()
-        except ValueError as exc:
-            raise LayoutError(
-                f"{path} is outside the run directory {self.run_dir}"
-            ) from exc
+            return path.resolve().relative_to(run_dir).as_posix()
+        except ValueError:
+            pass
+
+        # Already relative to the run dir. Re-anchor it to confirm it stays
+        # inside, so a "../" cannot smuggle a path back out.
+        if not path.is_absolute():
+            try:
+                (run_dir / path).resolve().relative_to(run_dir)
+            except ValueError:
+                pass
+            else:
+                return path.as_posix()
+
+        raise LayoutError(f"{path} is outside the run directory {self.run_dir}")
 
     def resolve(self, relative_path: str | Path) -> Path:
         """Inverse of :meth:`relpath`."""

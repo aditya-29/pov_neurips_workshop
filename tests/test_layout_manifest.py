@@ -93,6 +93,38 @@ class TestRunLayout:
         media = layout.media_file("clip.mp4")
         assert layout.resolve(layout.relpath(media)) == media
 
+    # Every other layout test builds on tmp_path, which is absolute. The
+    # shipped configs all use `output_root: data`, a *relative* root, and that
+    # took a different branch through relpath() that recorded the path
+    # cwd-relative instead of run-dir-relative — so `<run_dir>/<media_path>`
+    # did not resolve and load_ground_truth() raised on every chess row.
+    def test_relpath_with_relative_output_root(self, tmp_path, monkeypatch):
+        monkeypatch.chdir(tmp_path)
+        layout = RunLayout.build("data", "chess", "run1").create()
+
+        media = layout.media_file("clip.mp4")
+        assert not media.is_absolute()
+        assert media.as_posix() == "data/chess/run1/media/clip.mp4"
+
+        # The recorded value must be run-dir-relative, not cwd-relative.
+        assert layout.relpath(media) == "media/clip.mp4"
+
+        # And it must satisfy the documented contract: run_dir / media_path.
+        media.parent.mkdir(parents=True, exist_ok=True)
+        media.write_bytes(b"x")
+        assert (layout.run_dir / layout.relpath(media)).is_file()
+
+    def test_relpath_keeps_paths_already_relative_to_run_dir(self, tmp_path, monkeypatch):
+        monkeypatch.chdir(tmp_path)
+        layout = RunLayout.build("data", "chess", "run1").create()
+        assert layout.relpath("media/clip.mp4") == "media/clip.mp4"
+
+    def test_relpath_rejects_relative_escape(self, tmp_path, monkeypatch):
+        monkeypatch.chdir(tmp_path)
+        layout = RunLayout.build("data", "chess", "run1").create()
+        with pytest.raises(LayoutError, match="outside the run directory"):
+            layout.relpath("../../elsewhere.mp4")
+
     @pytest.mark.parametrize("bad", ["a/b.mp4", "..", "", "a\\b.mp4"])
     def test_media_file_rejects_path_separators(self, layout, bad):
         with pytest.raises(LayoutError):
