@@ -326,8 +326,26 @@ def main(argv=None) -> int:
     finally:
         fh.close()
 
-    print(f"\nwrote {counts['ok'] + counts['fail']} row(s) to {output} "
-          f"(ok={counts['ok']} failed={counts['fail']})")
+    # --resume appends, so a retried row would otherwise appear twice and be
+    # double-counted by `pov eval`. Collapse on sample_id, and never let an
+    # empty retry overwrite an answer an earlier pass already got.
+    kept = {}
+    with open(output) as fh:
+        for line in fh:
+            line = line.strip()
+            if not line:
+                continue
+            r = json.loads(line)
+            sid = r["sample_id"]
+            if sid in kept and not (r.get("model_output") or "").strip():
+                continue
+            kept[sid] = r
+    with open(output, "w") as fh:
+        for r in kept.values():
+            fh.write(json.dumps(r) + "\n")
+
+    print(f"\nwrote {len(kept)} unique row(s) to {output} "
+          f"(this pass: ok={counts['ok']} failed={counts['fail']})")
     print(f"elapsed_sec: {time.time() - t0:.1f}")
     print(f"next: pov eval -i {output} -o {run_dir}/eval/{tag}")
     return 1 if counts["fail"] and not counts["ok"] else 0
