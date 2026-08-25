@@ -55,7 +55,12 @@ DEFAULT_SAMPLING = {"fps": 2.0, "max_frames": 96, "min_frames": 4}
 # a hard stem (e.g. the minimal polynomial of sqrt 6) runs past 256 tokens, so it
 # is cut off before emitting "ANSWER: X". That scores as `answered=0` -- a refusal
 # the model never made. Budget for the reasoning, not just the letter.
-MAX_NEW_TOKENS = {"chess": 8192, "asl": 512, "wbw_mcq": 1024}
+# asl: the prompt asks for a frame-by-frame analysis, then GLOSS, then
+# TRANSLATION, then CONFIDENCE. At 512 the model spends the whole budget on the
+# analysis and is cut off before TRANSLATION: 129 of 170 rows had no TRANSLATION
+# section and scored mean WER 13.9, against 1.35 for the 41 rows that reached it.
+# The scorer then reads the entire analysis as the hypothesis.
+MAX_NEW_TOKENS = {"chess": 8192, "asl": 2048, "wbw_mcq": 1024}
 DEFAULT_MAX_NEW_TOKENS = 512
 
 
