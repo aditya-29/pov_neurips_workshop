@@ -95,7 +95,13 @@ def parse_args(argv=None):
     p.add_argument("--manifest", type=Path, default=None,
                    help="manifest path (default: <run-dir>/manifest.jsonl)")
     p.add_argument("--output", type=Path, default=None,
-                   help="output path (default: <run-dir>/preds.jsonl)")
+                   help="exact output path. Refused with --num-shards > 1, "
+                        "since every shard would write the same file — use "
+                        "--tag there instead")
+    p.add_argument("--tag", default="",
+                   help="suffix for the output filename, e.g. --tag qwen3vl "
+                        "writes preds.qwen3vl.jsonl. Lets several models score "
+                        "the same run without overwriting each other")
     p.add_argument("--model", default="Qwen/Qwen3.5-9B")
     p.add_argument("--limit", type=int, default=None,
                    help="stop after N rows (after --stratify)")
@@ -337,12 +343,17 @@ def main(argv=None) -> int:
     args = parse_args(argv)
     run_dir = args.run_dir
     manifest = args.manifest or run_dir / "manifest.jsonl"
+    if args.output and args.num_shards > 1:
+        raise SystemExit(
+            "--output with --num-shards > 1 would make every shard write the "
+            "same file; use --tag to name the set instead")
+    tag = f".{args.tag}" if args.tag else ""
     if args.output:
         output = args.output
     elif args.num_shards > 1:
-        output = run_dir / f"preds.shard{args.shard}of{args.num_shards}.jsonl"
+        output = run_dir / f"preds{tag}.shard{args.shard}of{args.num_shards}.jsonl"
     else:
-        output = run_dir / "preds.jsonl"
+        output = run_dir / f"preds{tag}.jsonl"
 
     if not manifest.exists():
         raise SystemExit(f"no manifest at {manifest}")
