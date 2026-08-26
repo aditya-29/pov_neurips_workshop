@@ -72,6 +72,11 @@ def parse_args(argv=None):
                         "and any per-request image limit the provider enforces")
     p.add_argument("--fps", type=float, default=None)
     p.add_argument("--max-new-tokens", type=int, default=None)
+    p.add_argument("--token-param", default="max_tokens",
+                   choices=("max_tokens", "max_completion_tokens"),
+                   help="which output-budget field the provider accepts. The "
+                        "newer OpenAI reasoning models reject max_tokens with a "
+                        "400 and require max_completion_tokens")
     p.add_argument("--jpeg-quality", type=int, default=85)
     p.add_argument("--resume", action="store_true")
     p.add_argument("--dry-run", action="store_true",
@@ -155,7 +160,7 @@ class PortkeyRunner:
 
     input_mode = "sampled_frames"
 
-    def __init__(self, model: str):
+    def __init__(self, model: str, token_param: str = "max_tokens"):
         import os
         from portkey_ai import Portkey
         key = os.environ.get("PORTKEY_API_KEY")
@@ -163,6 +168,7 @@ class PortkeyRunner:
             raise SystemExit("PORTKEY_API_KEY is not set in the environment")
         self.client = Portkey(api_key=key)
         self.model = model
+        self.token_param = token_param
 
     def ask(self, row, media_path, samp, max_tokens, quality) -> tuple[str, dict]:
         system, text = build_prompt(row)
@@ -183,7 +189,8 @@ class PortkeyRunner:
         messages.append({"role": "user", "content": parts})
 
         resp = self.client.chat.completions.create(
-            model=self.model, messages=messages, max_tokens=max_tokens,
+            model=self.model, messages=messages,
+            **{self.token_param: max_tokens},
         )
         choice = resp.choices[0]
         answer = (choice.message.content or "").strip()
@@ -247,7 +254,7 @@ def main(argv=None) -> int:
     print(f"selected   : {len(rows)}  |  done: {len(done)}  |  to run: {len(todo)}")
     print(f"model      : {model}")
     print(f"output     : {output}")
-    print(f"concurrency: {args.concurrency}")
+    print(f"concurrency: {args.concurrency}   token_param: {args.token_param}")
     if True:
         print(f"input      : sampled frames  (~{est_frames} images, "
               f"~{est_frames * 176 / 1e6:.2f}M image tokens at ~176 tok/frame)")
@@ -268,7 +275,7 @@ def main(argv=None) -> int:
         print("nothing to do")
         return 0
 
-    runner = PortkeyRunner(model)
+    runner = PortkeyRunner(model, args.token_param)
 
     lock = threading.Lock()
     fh = open(output, "a" if (args.resume and output.exists()) else "w")
