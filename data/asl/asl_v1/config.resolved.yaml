@@ -1,0 +1,47 @@
+experiment: asl
+run:
+  output_root: data
+  run_id: asl_v1
+  seed: 42
+  workers: 8
+  overwrite: true
+  resume: false
+video:
+  fps: 30
+  crf: 20
+  preset: veryfast
+  tune: null
+  pix_fmt: yuv420p
+  codec: libx264
+  threads: 0
+params:
+  metadata_csv: data/asl_source/how2sign_val.csv
+  video_dir: data/asl_source/val_raw_videos
+  delimiter: auto
+  id_column: SENTENCE_NAME
+  text_column: SENTENCE
+  video_extension: .mp4
+  duration_column: null
+  buckets:
+    edges:
+    - 0
+    - 3
+    - 5
+    - 10
+    - 15
+    - 20
+    - 25
+    - 30
+  samples_per_bucket: 28
+  scale_height: 480
+  target_fps: null
+  max_clip_seconds: null
+  use_time_range: false
+  start_column: START
+  end_column: END
+  probe_workers: 16
+  duration_cache: auto
+_meta:
+  config_hash: e1225b96852f
+  source_path: configs/asl.yaml
+  written_at: '2026-08-23T03:09:50'

@@ -1,0 +1,54 @@
+experiment: chess
+run:
+  output_root: data
+  run_id: null
+  seed: 1234
+  workers: 32
+  overwrite: false
+  resume: true
+video:
+  fps: 30
+  crf: 18
+  preset: veryfast
+  tune: stillimage
+  pix_fmt: yuv420p
+  codec: libx264
+  threads: 0
+params:
+  num_games: 20
+  max_half_moves: 600
+  max_game_attempts: 12
+  motion: static
+  durations:
+  - label: 5s
+    seconds: 5
+  - label: 10s
+    seconds: 10
+  - label: 30s
+    seconds: 30
+  - label: 1min
+    seconds: 60
+  - label: 2min
+    seconds: 120
+  - label: 5min
+    seconds: 300
+  - label: 10min
+    seconds: 600
+  timing:
+    intro_frames: 60
+    hold_frames: 36
+    slide_frames: 14
+    pause_frames: 22
+    outro_frames: 120
+    intro_share: 0.1
+    outro_share: 0.2
+  theme:
+    square: 48
+    padding: 16
+    panel: 64
+  show_labels: true
+  use_svg_pieces: true
+_meta:
+  config_hash: 547f861a109a
+  source_path: configs/chess.yaml
+  written_at: '2026-08-24T00:18:59'

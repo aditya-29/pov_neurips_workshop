@@ -1,0 +1,7 @@
+{"experiment": "wbw_mcq", "condition": "cumulative_fast", "model": "Qwen/Qwen3.5-9B", "run_id": "20260824-002030-a3e45207c4ce", "n": 200, "score_correct": 0.74, "score_answered": 1.0, "score_refusal": 0.0}
+{"experiment": "wbw_mcq", "condition": "cumulative_normal", "model": "Qwen/Qwen3.5-9B", "run_id": "20260824-002030-a3e45207c4ce", "n": 200, "score_correct": 0.755, "score_answered": 0.995, "score_refusal": 0.0}
+{"experiment": "wbw_mcq", "condition": "cumulative_slow", "model": "Qwen/Qwen3.5-9B", "run_id": "20260824-002030-a3e45207c4ce", "n": 200, "score_correct": 0.705, "score_answered": 1.0, "score_refusal": 0.0}
+{"experiment": "wbw_mcq", "condition": "static_image", "model": "Qwen/Qwen3.5-9B", "run_id": "20260824-002030-a3e45207c4ce", "n": 200, "score_correct": 0.77, "score_answered": 0.995, "score_refusal": 0.0}
+{"experiment": "wbw_mcq", "condition": "vanishing_fast", "model": "Qwen/Qwen3.5-9B", "run_id": "20260824-002030-a3e45207c4ce", "n": 200, "score_correct": 0.4, "score_answered": 1.0, "score_refusal": 0.0}
+{"experiment": "wbw_mcq", "condition": "vanishing_normal", "model": "Qwen/Qwen3.5-9B", "run_id": "20260824-002030-a3e45207c4ce", "n": 200, "score_correct": 0.42, "score_answered": 1.0, "score_refusal": 0.0}
+{"experiment": "wbw_mcq", "condition": "vanishing_slow", "model": "Qwen/Qwen3.5-9B", "run_id": "20260824-002030-a3e45207c4ce", "n": 200, "score_correct": 0.49, "score_answered": 1.0, "score_refusal": 0.0}

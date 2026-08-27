@@ -1,0 +1,45 @@
+experiment: wbw_mcq
+run:
+  output_root: data
+  run_id: null
+  seed: 1234
+  workers: 32
+  overwrite: false
+  resume: true
+video:
+  fps: 30
+  crf: 18
+  preset: veryfast
+  tune: stillimage
+  pix_fmt: yuv420p
+  codec: libx264
+  threads: 0
+params:
+  questions_path: data/questions.jsonl
+  questions_format: auto
+  limit: null
+  shuffle: false
+  static_image: true
+  modes:
+  - vanishing
+  - cumulative
+  speeds:
+    slow: 0.5
+    normal: 2.0
+    fast: 5.0
+  blank_gap_frames: 4
+  min_frames_per_word: 1
+  jpeg_quality: 90
+  canvas:
+    width: 1200
+    height: 800
+    video_font_size: 36
+    video_padding: 80
+    video_line_gap: 8
+    static_font_size: 18
+    static_padding: 60
+    static_line_gap: 14
+_meta:
+  config_hash: a3e45207c4ce
+  source_path: configs/wbw_mcq.yaml
+  written_at: '2026-08-24T00:20:30'

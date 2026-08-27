@@ -1,0 +1,7 @@
+{"experiment": "wbw_mcq", "condition": "cumulative_fast", "model": "@anthropic-default/claude-opus-5", "run_id": "20260824-002030-a3e45207c4ce", "n": 20, "score_correct": 1.0, "score_answered": 1.0, "score_refusal": 0.0}
+{"experiment": "wbw_mcq", "condition": "cumulative_normal", "model": "@anthropic-default/claude-opus-5", "run_id": "20260824-002030-a3e45207c4ce", "n": 20, "score_correct": 1.0, "score_answered": 1.0, "score_refusal": 0.0}
+{"experiment": "wbw_mcq", "condition": "cumulative_slow", "model": "@anthropic-default/claude-opus-5", "run_id": "20260824-002030-a3e45207c4ce", "n": 20, "score_correct": 1.0, "score_answered": 1.0, "score_refusal": 0.0}
+{"experiment": "wbw_mcq", "condition": "static_image", "model": "@anthropic-default/claude-opus-5", "run_id": "20260824-002030-a3e45207c4ce", "n": 20, "score_correct": 1.0, "score_answered": 1.0, "score_refusal": 0.0}
+{"experiment": "wbw_mcq", "condition": "vanishing_fast", "model": "@anthropic-default/claude-opus-5", "run_id": "20260824-002030-a3e45207c4ce", "n": 20, "score_correct": 1.0, "score_answered": 1.0, "score_refusal": 0.0}
+{"experiment": "wbw_mcq", "condition": "vanishing_normal", "model": "@anthropic-default/claude-opus-5", "run_id": "20260824-002030-a3e45207c4ce", "n": 20, "score_correct": 1.0, "score_answered": 1.0, "score_refusal": 0.0}
+{"experiment": "wbw_mcq", "condition": "vanishing_slow", "model": "@anthropic-default/claude-opus-5", "run_id": "20260824-002030-a3e45207c4ce", "n": 20, "score_correct": 1.0, "score_answered": 1.0, "score_refusal": 0.0}
