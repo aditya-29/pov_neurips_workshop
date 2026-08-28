@@ -110,6 +110,12 @@ def parse_args(argv=None):
                         "condition instead of the first N rows of one")
     p.add_argument("--conditions", default=None,
                    help="comma-separated conditions to keep")
+    p.add_argument("--only-ids", type=Path, default=None,
+                   help="file of sample_ids (one per line) to restrict this run "
+                        "to. Used by the FPS sweep: past the frame cap several "
+                        "fps values produce a byte-identical request, so only "
+                        "the lowest fps that yields each distinct frame count "
+                        "is actually run")
     p.add_argument("--num-shards", type=int, default=1, metavar="N",
                    help="split the work N ways for N parallel GPU workers")
     p.add_argument("--shard", type=int, default=0, metavar="K",
@@ -360,6 +366,12 @@ def main(argv=None) -> int:
 
     rows = load_manifest(manifest)
     total = len(rows)
+    if args.only_ids:
+        keep = {ln.strip() for ln in open(args.only_ids) if ln.strip()}
+        rows = [r for r in rows if r["sample_id"] in keep]
+        if not rows:
+            print(f"no rows match {args.only_ids}; nothing to do")
+            return 0
     rows = select(rows, args.conditions, args.stratify, args.limit)
     selected_total = len(rows)
     rows = shard_rows(rows, args.shard, args.num_shards)
