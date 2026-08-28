@@ -673,6 +673,55 @@ only the declared runtime dependencies, and runs generate → eval → report. T
 second job is the one that catches packaging mistakes: a prompt missing from the
 wheel fails there while the normal matrix stays green.
 
+## Results website
+
+The interactive evaluation atlas lives in [`website/`](website/). It has no
+build step or package dependencies. From the repository root, run:
+
+```bash
+python3 -m http.server 8000 --directory website
+```
+
+Then open `http://localhost:8000`.
+
+## Experiment TODOs
+
+Unless noted otherwise, **FPS means the frame-sampling rate supplied to the
+model**, not the encoded FPS of the source video. Keep the generated media,
+prompts, decoding settings, scoring code, and matched sample IDs fixed within
+each sweep so that only the declared variable changes.
+
+- [ ] **Chess FPS sweep**
+  - Evaluate every generated chess video with every model.
+  - Sweep input sampling FPS over **1, 5, 10, 15, 20, and 30 FPS**.
+  - Report every chess metric by model, video-duration condition, and FPS.
+  - Preserve per-sample results so FPS effects can be compared on identical
+    games rather than only through aggregate scores.
+
+- [ ] **ASL translation FPS sweep**
+  - Evaluate the complete ASL evaluation set with every model.
+  - Sweep input sampling FPS over **1, 5, 10, 15, 20, and 30 FPS**.
+  - Report every translation metric by model, duration bucket, and FPS.
+  - Use the same clips and matched sample IDs at every FPS. Continue to follow
+    the How2Sign licence and redaction requirements.
+
+- [ ] **Word-by-word MCQ factorial sweep**
+  - Evaluate every generated word-by-word MCQ video with every model.
+  - Run the full Cartesian product of:
+    - input sampling FPS: **1, 5, 10, 15, 20, 30**;
+    - target video length: **5, 10, 15, 20, 30 seconds**;
+    - presentation speed: **slow, normal, fast**.
+  - Define speeds numerically and keep them fixed across video lengths:
+    **slow = 0.5 words/second**, **normal = 2 words/second**, and
+    **fast = 5 words/second**, matching `configs/wbw_mcq.yaml`.
+  - Treat this as a **6 × 5 × 3 factorial matrix (90 conditions per model)**,
+    evaluated separately for cumulative and vanishing presentation modes.
+  - Specify a deterministic length policy before generation: clips shorter
+    than the target require padding, while clips longer than the target require
+    a documented truncation or time-normalization rule.
+  - Report accuracy by model, presentation mode, FPS, target length, and speed;
+    retain per-sample results and coverage statistics for every matrix cell.
+
 ## Licence
 
 The code is MIT — see `LICENSE`. **That does not cover the datasets.** How2Sign

@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Interactive results explorer for the POV multimodal benchmark.">
+  <title>POV — Evaluation Atlas</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="site-header">
+    <a class="brand" href="#top" aria-label="POV home">
+      <span class="brand-mark">P</span>
+      <span>POV <i>/ Evaluation Atlas</i></span>
+    </a>
+    <nav aria-label="Primary navigation">
+      <a href="#results">Results</a>
+      <a href="#method">Method</a>
+      <a class="nav-pill" href="../RESULTS.md">Raw tables ↗</a>
+    </nav>
+  </header>
+
+  <main id="top">
+    <section class="hero">
+      <div class="hero-copy">
+        <p class="eyebrow">NeurIPS 2026 workshop project</p>
+        <h1>What changes when<br><em>information moves?</em></h1>
+        <p class="lede">The same semantic content, presented across time. Explore how vision-language models perform as clips get longer, signs unfold, and words appear—or disappear.</p>
+        <a class="primary-button" href="#results">Explore the results <span>↓</span></a>
+      </div>
+      <div class="hero-visual" aria-hidden="true">
+        <div class="orbit orbit-one"></div>
+        <div class="orbit orbit-two"></div>
+        <div class="frame frame-a"><span>00:01</span><b>e4</b></div>
+        <div class="frame frame-b"><span>00:08</span><b>♞</b></div>
+        <div class="frame frame-c"><span>00:24</span><b>A B C</b></div>
+        <div class="pulse"></div>
+      </div>
+      <div class="hero-stats">
+        <div><strong>3</strong><span>tasks</span></div>
+        <div><strong>4</strong><span>models</span></div>
+        <div><strong>410</strong><span>matched items</span></div>
+        <div><strong>21</strong><span>conditions</span></div>
+      </div>
+    </section>
+
+    <section class="results" id="results">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">Interactive results</p>
+          <h2>Performance, over time.</h2>
+        </div>
+        <p>Select a benchmark and metric. Every point is an average over the same matched item set for all four models.</p>
+      </div>
+
+      <div class="benchmark-tabs" role="tablist" aria-label="Benchmarks">
+        <button class="tab active" role="tab" data-benchmark="chess" aria-selected="true"><span>01</span> Chess reconstruction</button>
+        <button class="tab" role="tab" data-benchmark="asl" aria-selected="false"><span>02</span> ASL translation</button>
+        <button class="tab" role="tab" data-benchmark="wbw"><span>03</span> Word-by-word MCQ</button>
+      </div>
+
+      <div class="dashboard">
+        <div class="dashboard-head">
+          <div>
+            <p class="kicker" id="task-kicker"></p>
+            <h3 id="task-title"></h3>
+            <p id="task-description"></p>
+          </div>
+          <div class="metric-control">
+            <label for="metric-select">Metric</label>
+            <select id="metric-select"></select>
+          </div>
+        </div>
+
+        <div class="overview-grid">
+          <article class="chart-card">
+            <div class="card-title">
+              <div><span class="status-dot"></span><span id="chart-title">Score by condition</span></div>
+              <small id="direction-label"></small>
+            </div>
+            <div class="chart-wrap">
+              <svg id="line-chart" viewBox="0 0 850 390" role="img" aria-label="Line chart of model performance"></svg>
+              <div id="tooltip" class="tooltip" hidden></div>
+            </div>
+            <div class="legend" id="legend"></div>
+            <p class="graph-note" id="graph-note"></p>
+          </article>
+
+          <aside class="ranking-card">
+            <div class="card-title"><span>Overall ranking</span><small id="sample-count"></small></div>
+            <div id="ranking"></div>
+            <div class="insight" id="insight"></div>
+          </aside>
+        </div>
+
+        <div class="metric-strip" id="metric-strip"></div>
+      </div>
+    </section>
+
+    <section class="method" id="method">
+      <div class="method-number">03</div>
+      <div class="method-copy">
+        <p class="eyebrow">Reading the benchmark</p>
+        <h2>One controlled change.<br>Many ways to fail.</h2>
+      </div>
+      <div class="method-notes">
+        <article><span>01</span><div><h3>Matched sets</h3><p>Every comparison uses only sample IDs answered by every listed model, keeping columns directly comparable.</p></div></article>
+        <article><span>02</span><div><h3>Temporal pressure</h3><p>Conditions vary duration or reveal style while preserving the underlying task and evaluation protocol.</p></div></article>
+        <article><span>03</span><div><h3>Metric direction</h3><p>Most metrics reward higher values. Word error rate is the exception: lower is better, and the interface marks it explicitly.</p></div></article>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="brand"><span class="brand-mark">P</span><span>POV</span></div>
+    <p>Point-of-view benchmark · evaluation snapshot · August 2026</p>
+    <a href="#top">Back to top ↑</a>
+  </footer>
+  <script src="app.js"></script>
+</body>
+</html>
