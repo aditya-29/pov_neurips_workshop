@@ -103,6 +103,10 @@ def parse_args(argv=None):
                         "writes preds.qwen3vl.jsonl. Lets several models score "
                         "the same run without overwriting each other")
     p.add_argument("--model", default="Qwen/Qwen3.5-9B")
+    p.add_argument("--prompt-kind", default=None, metavar="KIND",
+                   help="Task prompt variant to use instead of the default "
+                        "(e.g. task_direct for ASL translation-only). "
+                        "See `pov prompt --list`.")
     p.add_argument("--limit", type=int, default=None,
                    help="stop after N rows (after --stratify)")
     p.add_argument("--stratify", type=int, default=None, metavar="N",
@@ -262,7 +266,14 @@ def build_messages(row: dict, media_path: Path, args, samp: dict) -> tuple[str |
 
     experiment = row["experiment"]
     condition = row["condition"]
-    instruction = prompts.for_condition(experiment, condition)
+    kind = getattr(args, "prompt_kind", None)
+    if kind and experiment != "wbw_mcq":
+        # chess and ASL use one instruction for every condition, so a
+        # kind override replaces it wholesale. wbw_mcq splits task from
+        # per-condition user message and is left alone.
+        instruction = prompts.get(experiment, kind)
+    else:
+        instruction = prompts.for_condition(experiment, condition)
 
     # wbw_mcq splits task (system) from the per-condition user message; chess and
     # ASL put the whole task in one instruction.
@@ -322,16 +333,18 @@ class Runner:
         text = self.processor.apply_chat_template(
             messages, tokenize=False, add_generation_prompt=True, **self.tkw)
         images, videos, video_kwargs = process_vision_info(
-            messages, return_video_kwargs=True)
-        # Newer processors reject list-valued fps; coerce to a scalar. An
-        # image-only message yields an *empty* fps list, so indexing [0]
-        # unconditionally breaks every static_image row.
-        fps = video_kwargs.get("fps")
-        if isinstance(fps, (list, tuple)):
-            if fps:
-                video_kwargs["fps"] = float(fps[0])
-            else:
-                video_kwargs.pop("fps")
+            messages, return_video_kwargs=True, return_video_metadata=True)
+        # Qwen3-VL builds per-frame timestamps as `frame_index / native_fps`, so
+        # it needs the source fps and the indices actually sampled -- not the
+        # post-sampling rate. Without `video_metadata` it cannot infer either and
+        # silently assumes fps=24, which mis-times every clip (ours encode at 30
+        # and sample at 1/6/10). `return_video_metadata=True` makes qwen_vl_utils
+        # hand back (tensor, metadata) pairs carrying the real values; the
+        # processor wants the tensors in `videos` and the metadata beside them.
+        # It also drops `fps` from video_kwargs, so no coercion is needed here.
+        if videos:
+            video_kwargs["video_metadata"] = [v[1] for v in videos]
+            videos = [v[0] for v in videos]
 
         inputs = self.processor(text=[text], images=images, videos=videos,
                                 padding=True, return_tensors="pt",
