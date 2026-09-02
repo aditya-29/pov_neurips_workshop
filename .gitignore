@@ -51,18 +51,21 @@ htmlcov/
 .DS_Store
 Thumbs.db
 
-# Results are committed; the media they describe is not (1.2 GB, 3420 files).
-# scored.jsonl is a superset of preds.jsonl (every input field + score_*), so
-# only scored/summary are kept -- preds would duplicate ~37 MB.
-# report*.html is excluded: it references media by relative path and would ship
-# broken players. Regenerate locally with `pov report`.
+# Results are committed in full so a collaborator can check them: scored,
+# summary, preds, manifests, resolved configs and reports. Only the media stays
+# out -- 1.2 GB across 3420 clips, shared via the filesystem instead. Note that
+# report*.html references media by relative path, so its players are empty
+# without a local copy of data/*/*/media/.
+#
+# LICENCE NOTE: the committed ASL rows carry How2Sign translations verbatim, and
+# the wbw_mcq rows carry MMLU stems and options verbatim. How2Sign is CC BY-NC
+# 4.0, research use only, not redistributable. Keep this repository private, or
+# redact before publishing -- scripts/redact_asl_scores.py does the ASL half.
 !/data/*/*/eval/
-!/data/*/*/eval/**/scored.jsonl
-!/data/*/*/eval/**/summary.jsonl
+!/data/*/*/eval/**/*.jsonl
+!/data/*/*/*.jsonl
 !/data/*/*/config.resolved.yaml
+!/data/*/*/report*.html
 
-# ASL is the exception: How2Sign is CC BY-NC 4.0 and not redistributable, so its
-# scored rows (which carry the translations verbatim) stay local and only the
-# redacted copies are committed. See scripts/redact_asl_scores.py.
-/data/asl/*/eval/**/scored.jsonl
-!/data/asl/*/eval/**/scored.redacted.jsonl
+# Scratch: slurm logs, probe outputs, generated report drafts.
+/logs/
