@@ -349,9 +349,16 @@ pov prompt wbw_mcq                             # MCQ system prompt
 pov prompt wbw_mcq --condition vanishing_slow  # user message for a condition
 ```
 
-Available: `asl/task`, `asl/judge`, `chess/task`, `chess/task_legacy`,
-`wbw_mcq/task`, `wbw_mcq/user_text`, `wbw_mcq/user_static_image`,
-`wbw_mcq/user_video`.
+Available: `asl/task`, `asl/task_direct`, `asl/judge`, `chess/task`,
+`chess/task_legacy`, `wbw_mcq/task`, `wbw_mcq/user_text`,
+`wbw_mcq/user_static_image`, `wbw_mcq/user_video`.
+
+`asl/task_direct` asks for the English sentence and nothing else. The default
+`asl/task` asks for GLOSS / TRANSLATION / CONFIDENCE, but `AslScorer` compares
+`model_output` verbatim to a plain sentence, so a reply that never reaches its
+TRANSLATION section is scored as gloss prose: in a 170-row run 93 replies did
+exactly that and median WER hit 31.97. Use `task_direct` for new runs; keep
+`task` to reproduce old ones.
 
 ```python
 from pov import prompts

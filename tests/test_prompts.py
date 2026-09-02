@@ -68,7 +68,7 @@ class TestRegistry:
             assert len(text.strip()) > 20, f"{experiment}/{kind} looks empty"
 
     def test_kinds_lists_only_that_experiment(self):
-        assert prompts.kinds("asl") == ["judge", "task"]
+        assert prompts.kinds("asl") == ["judge", "task", "task_direct"]
         assert "judge" not in prompts.kinds("chess")
 
     def test_default_kind_is_task(self):

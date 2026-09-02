@@ -40,6 +40,13 @@ except ImportError:  # pragma: no cover - floor is 3.10
 _REGISTRY: dict[tuple[str, str], str] = {
     ("asl", "task"): "asl_task.txt",
     ("asl", "judge"): "asl_judge.txt",
+    # Translation-only variant. The default asl/task asks for
+    # GLOSS/TRANSLATION/CONFIDENCE, but AslScorer compares model_output
+    # verbatim to a plain sentence: in a 170-row run 93 replies never
+    # reached a TRANSLATION section, so ~5.9k characters of gloss analysis
+    # were scored as the hypothesis and median WER hit 31.97. This asks
+    # for the sentence alone, so the reply *is* the hypothesis.
+    ("asl", "task_direct"): "asl_task_direct.txt",
     ("chess", "task"): "chess_task.txt",
     # The original study's wording, kept for provenance. It describes a caption
     # that read "Move N — Color: <notation>"; the renderer now prints only the
